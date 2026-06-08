@@ -1,0 +1,66 @@
+name: PR Report Card (fork)
+
+# ── GOALS ─────────────────────────────────────────────────────────────────────
+# Goal 3: manual check on the current branch state (no PR needed)
+# Goal 4: automatic check triggered by a push to any branch
+
+on:
+  push:
+    branches:
+      - "**"
+    # Optional: ignore noise commits
+    paths-ignore:
+      - "**.md"
+      - ".github/**"
+  workflow_dispatch:
+    # No inputs needed — runs against current branch HEAD
+
+concurrency:
+  group: mflux-report-fork-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  # No pull-requests write — forks don't post PR comments
+
+jobs:
+  report-card:
+    name: "Branch Report Card"
+    runs-on: macos-14
+
+    steps:
+
+      # ── Resolve branch context ─────────────────────────────────────────────
+      # Determines head SHA, base ref, and base SHA.
+      # Base is the upstream main branch; fetches it via the API so we don't
+      # need a full clone of upstream.
+      - name: "Resolve branch metadata"
+        id: branch
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          HEAD_SHA="${{ github.sha }}"
+          BRANCH_NAME="${{ github.ref_name }}"
+          BASE_REF="main"
+
+          # Fetch the current SHA of upstream main via API
+          # Adjust owner/repo if your upstream differs
+          BASE_SHA=$(gh api repos/filipstrand/mflux/git/ref/heads/main \
+            --jq '.object.sha' 2>/dev/null || echo "$HEAD_SHA")
+
+          echo "head_sha=$HEAD_SHA"       >> $GITHUB_OUTPUT
+          echo "branch_name=$BRANCH_NAME" >> $GITHUB_OUTPUT
+          echo "base_ref=$BASE_REF"       >> $GITHUB_OUTPUT
+          echo "base_sha=$BASE_SHA"       >> $GITHUB_OUTPUT
+
+      # ── Run shared report action ───────────────────────────────────────────
+      - name: "Run mflux report card"
+        uses: ./.github/actions/mflux-pr-report
+        with:
+          mode:            "branch"
+          branch_name:     ${{ steps.branch.outputs.branch_name }}
+          head_sha:        ${{ steps.branch.outputs.head_sha }}
+          base_ref:        ${{ steps.branch.outputs.base_ref }}
+          base_sha:        ${{ steps.branch.outputs.base_sha }}
+          post_pr_comment: "false"
+          # No github_token or repository needed — no PR comment posted

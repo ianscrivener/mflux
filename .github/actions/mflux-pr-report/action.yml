@@ -1,0 +1,334 @@
+name: "mflux Report Card"
+description: "Runs linting, type checking, tests and builds a report. Works for PRs and branches."
+
+inputs:
+  head_sha:
+    description: "SHA of the head commit to check"
+    required: true
+  base_ref:
+    description: "Base branch name (e.g. main)"
+    required: true
+    default: "main"
+  base_sha:
+    description: "SHA of the base commit for baseline comparison"
+    required: true
+  mode:
+    description: "pr | branch"
+    required: true
+    default: "branch"
+  pr_number:
+    description: "PR number (required when mode=pr)"
+    required: false
+    default: ""
+  pr_title:
+    description: "PR title (optional, used in report header)"
+    required: false
+    default: ""
+  pr_author:
+    description: "PR author login (optional, used in report header)"
+    required: false
+    default: ""
+  branch_name:
+    description: "Branch name (used in report header when mode=branch)"
+    required: false
+    default: ""
+  post_pr_comment:
+    description: "Whether to post a PR comment (true | false)"
+    required: false
+    default: "false"
+  github_token:
+    description: "GitHub token (required if post_pr_comment=true)"
+    required: false
+    default: ""
+  repository:
+    description: "Target repo for PR comment (owner/repo)"
+    required: false
+    default: ""
+
+runs:
+  using: "composite"
+  steps:
+
+    # ── SETUP ─────────────────────────────────────────────────────────────────
+    - name: "Set up uv"
+      uses: astral-sh/setup-uv@v4
+
+    - name: "Install Python 3.13"
+      shell: bash
+      run: uv python install 3.13
+
+    - name: "Install ruff"
+      shell: bash
+      run: uv tool install 'ruff==0.12.1'
+
+    - name: "Install typos"
+      shell: bash
+      run: brew install typos-cli
+
+    - name: "Install mypy"
+      shell: bash
+      run: uv tool install 'mypy==1.16.1'
+
+    - name: "Install pre-commit"
+      shell: bash
+      run: uv tool install pre-commit
+
+    # ── CHECKOUT HEAD (needed before cache hashFiles) ──────────────────────────
+    - name: "Checkout head commit"
+      uses: actions/checkout@v4
+      with:
+        ref: ${{ inputs.head_sha }}
+
+    - name: "Cache pre-commit hook binaries"
+      uses: actions/cache@v4
+      with:
+        path: ~/.cache/pre-commit
+        key: pre-commit-${{ runner.os }}-${{ hashFiles('.pre-commit-config.yaml') }}
+
+    # ── BASELINE (base branch) ─────────────────────────────────────────────────
+    - name: "Checkout base for baseline"
+      uses: actions/checkout@v4
+      with:
+        ref: ${{ inputs.base_sha }}
+        clean: false
+
+    - name: "Capture base SHA short"
+      shell: bash
+      run: echo "BASE_SHA_SHORT=$(git rev-parse --short HEAD)" >> $GITHUB_ENV
+
+    - name: "Baseline — ruff"
+      shell: bash
+      run: |
+        make -s lint 2>&1 > /tmp/main-ruff.txt || true
+
+    - name: "Baseline — typos"
+      shell: bash
+      run: |
+        typos src/ 2>&1 > /tmp/main-typos.txt || true
+
+    - name: "Baseline — mypy"
+      shell: bash
+      run: |
+        mypy src/ 2>&1 > /tmp/main-mypy.txt || true
+
+    # ── HEAD CHECKS ───────────────────────────────────────────────────────────
+    - name: "Checkout head for checks"
+      uses: actions/checkout@v4
+      with:
+        ref: ${{ inputs.head_sha }}
+        clean: false
+
+    - name: "Capture head SHA short"
+      shell: bash
+      run: echo "HEAD_SHA_SHORT=$(git rev-parse --short HEAD)" >> $GITHUB_ENV
+
+    - name: "Head — ruff"
+      shell: bash
+      run: |
+        make -s lint 2>&1 > /tmp/pr-ruff.txt || true
+
+    - name: "Head — typos"
+      shell: bash
+      run: |
+        typos src/ 2>&1 > /tmp/pr-typos.txt || true
+
+    - name: "Head — mypy"
+      shell: bash
+      run: |
+        mypy src/ 2>&1 > /tmp/pr-mypy.txt || true
+
+    - name: "Head — make test-fast"
+      id: tests
+      shell: bash
+      env:
+        MFLUX_PRESERVE_TEST_OUTPUT: "1"
+      run: |
+        make -s test-fast 2>&1 | tee /tmp/pr-tests.txt
+        EXIT=${PIPESTATUS[0]}
+        echo "passed=$( [ $EXIT -eq 0 ] && echo true || echo false )" >> $GITHUB_OUTPUT
+      continue-on-error: true
+
+    - name: "Head — pre-commit full suite"
+      id: precommit
+      shell: bash
+      run: |
+        make -s check 2>&1 | tee /tmp/precommit-output.txt
+        EXIT=${PIPESTATUS[0]}
+        echo "passed=$( [ $EXIT -eq 0 ] && echo true || echo false )" >> $GITHUB_OUTPUT
+      continue-on-error: true
+
+    # ── BUILD REPORT ──────────────────────────────────────────────────────────
+    - name: "Build report"
+      shell: bash
+      run: |
+        PRECOMMIT_PASSED=${{ steps.precommit.outputs.passed }}
+        TESTS_PASSED=${{ steps.tests.outputs.passed }}
+        MODE="${{ inputs.mode }}"
+        HEAD_SHA_SHORT="${{ env.HEAD_SHA_SHORT }}"
+        BASE_SHA_SHORT="${{ env.BASE_SHA_SHORT }}"
+
+        sed -i '' '/All checks passed!/d' /tmp/main-ruff.txt 2>/dev/null || true
+        sed -i '' '/All checks passed!/d' /tmp/pr-ruff.txt   2>/dev/null || true
+
+        count_lines() {
+          [ -f "$1" ] || { echo 0; return; }
+          grep -c "." "$1" 2>/dev/null || true
+        }
+        mypy_summary() {
+          grep -E "^Found [0-9]+ error|^Success:" "$1" 2>/dev/null | tail -1 || echo "no summary"
+        }
+
+        MAIN_RUFF_COUNT=$(count_lines /tmp/main-ruff.txt)
+        PR_RUFF_COUNT=$(count_lines /tmp/pr-ruff.txt)
+        MAIN_TYPOS_COUNT=$(count_lines /tmp/main-typos.txt)
+        PR_TYPOS_COUNT=$(count_lines /tmp/pr-typos.txt)
+        MAIN_MYPY_SUMMARY=$(mypy_summary /tmp/main-mypy.txt)
+        PR_MYPY_SUMMARY=$(mypy_summary /tmp/pr-mypy.txt)
+
+        RUFF_STATUS=$(    [ "$PR_RUFF_COUNT"  -eq 0 ]    && echo "✅" || echo "❌" )
+        TYPOS_STATUS=$(   [ "$PR_TYPOS_COUNT" -eq 0 ]    && echo "✅" || echo "❌" )
+        MYPY_STATUS=$(    echo "$PR_MYPY_SUMMARY" | grep -q "^Success:" && echo "✅" || echo "⚠️" )
+        TESTS_STATUS=$(   [ "$TESTS_PASSED"     = "true" ] && echo "✅ Pass" || echo "❌ Fail" )
+        PRECOMMIT_STATUS=$([ "$PRECOMMIT_PASSED" = "true" ] && echo "✅ Pass" || echo "❌ Fail" )
+
+        {
+          echo "# mflux Report Card"
+          echo "https://github.com/ianscrivener/mflux-sentinel"
+          echo ""
+
+          # ── Header: PR vs branch ──────────────────────────────────────────
+          if [ "$MODE" = "pr" ]; then
+            echo "| | |"
+            echo "| --- | --- |"
+            echo "| PR     | #${{ inputs.pr_number }} — ${{ inputs.pr_title }} |"
+            echo "| Author | @${{ inputs.pr_author }} |"
+            echo "| Commit | $HEAD_SHA_SHORT |"
+            echo "| Base   | ${{ inputs.base_ref }} @ $BASE_SHA_SHORT |"
+            echo "| Time   | $(date -u '+%Y-%m-%d %H:%M:%S UTC') |"
+          else
+            echo "| | |"
+            echo "| --- | --- |"
+            echo "| Branch | ${{ inputs.branch_name }} |"
+            echo "| Commit | $HEAD_SHA_SHORT |"
+            echo "| Base   | ${{ inputs.base_ref }} @ $BASE_SHA_SHORT |"
+            echo "| Time   | $(date -u '+%Y-%m-%d %H:%M:%S UTC') |"
+          fi
+
+          echo ""
+          echo "| Check | Result |"
+          echo "| --- | --- |"
+          echo "| ruff | $RUFF_STATUS |"
+          echo "| typos | $TYPOS_STATUS |"
+          echo "| mypy | $MYPY_STATUS |"
+          echo "| make test-fast | $TESTS_STATUS |"
+          echo "| pre-commit hook | $PRECOMMIT_STATUS |"
+          echo ""
+
+          # ── ruff ──────────────────────────────────────────────────────────
+          echo "---"
+          echo "### ruff"
+          echo "*python linter & formatter*"
+          echo ""
+          echo "**Issues:** $( [ "$PR_RUFF_COUNT" -eq 0 ] && echo "none" || echo "$PR_RUFF_COUNT" )"
+          echo ""
+          if [ "$MAIN_RUFF_COUNT" -gt 0 ]; then
+            echo "> ⚠️ base branch also has $MAIN_RUFF_COUNT issue(s) at $BASE_SHA_SHORT"
+            echo ""
+          fi
+          if [ "$PR_RUFF_COUNT" -gt 0 ]; then
+            echo '```'
+            # typos:disable
+            nl -ba /tmp/pr-ruff.txt | sed 's/^/  /'
+            # typos:enable
+            echo '```'
+          fi
+          echo ""
+
+          # ── typos ─────────────────────────────────────────────────────────
+          echo "---"
+          echo "### typos"
+          echo "*spell checker*"
+          echo ""
+          echo "**Issues:** $( [ "$PR_TYPOS_COUNT" -eq 0 ] && echo "none" || echo "$PR_TYPOS_COUNT" )"
+          echo ""
+          if [ "$MAIN_TYPOS_COUNT" -gt 0 ]; then
+            echo "> ⚠️ base branch also has $MAIN_TYPOS_COUNT typo(s) at $BASE_SHA_SHORT"
+            echo ""
+          fi
+          if [ "$PR_TYPOS_COUNT" -gt 0 ]; then
+            echo '```'
+            nl -ba /tmp/pr-typos.txt | sed 's/^/  /'
+            echo '```'
+          fi
+          echo ""
+
+          # ── mypy ──────────────────────────────────────────────────────────
+          echo "---"
+          echo "### mypy"
+          echo "*static type checker*"
+          echo ""
+          echo "**Summary:** $PR_MYPY_SUMMARY"
+          echo ""
+          if ! echo "$MAIN_MYPY_SUMMARY" | grep -q "^Success:"; then
+            echo "> ⚠️ base branch — $MAIN_MYPY_SUMMARY at $BASE_SHA_SHORT"
+            echo ""
+          fi
+          if ! echo "$PR_MYPY_SUMMARY" | grep -q "^Success:"; then
+            echo '```'
+            grep -v "^Success:" /tmp/pr-mypy.txt | tail -20
+            echo '```'
+          fi
+          echo ""
+
+          # ── tests ─────────────────────────────────────────────────────────
+          echo "---"
+          echo "### make test-fast"
+          echo "*pytest fast suite — no image generation*"
+          echo ""
+          echo "**Result:** $TESTS_STATUS"
+          echo ""
+          if [ "$TESTS_PASSED" != "true" ]; then
+            echo '```'
+            tail -30 /tmp/pr-tests.txt
+            echo '```'
+          fi
+          echo ""
+
+          # ── pre-commit ────────────────────────────────────────────────────
+          echo "---"
+          echo "### pre-commit hook"
+          echo ""
+          echo '```'
+          cat /tmp/precommit-output.txt
+          echo '```'
+
+        } > /tmp/validation-report.md
+
+        # Echo to job summary (works in all modes)
+        cat /tmp/validation-report.md >> $GITHUB_STEP_SUMMARY
+
+        echo ""
+        echo "======== REPORT ========"
+        cat /tmp/validation-report.md
+        echo "========================"
+
+    # ── POST PR COMMENT (upstream PR modes only) ───────────────────────────────
+    - name: "Post PR comment"
+      if: inputs.post_pr_comment == 'true'
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.github_token }}
+      run: |
+        gh pr comment ${{ inputs.pr_number }} \
+          --repo ${{ inputs.repository }} \
+          --body "$(cat /tmp/validation-report.md)"
+
+    # ── ARTIFACT ──────────────────────────────────────────────────────────────
+    - name: "Upload report artifact"
+      if: always()
+      continue-on-error: true
+      uses: actions/upload-artifact@v4
+      with:
+        name: mflux-report-card-${{ inputs.mode }}-${{ inputs.pr_number != '' && inputs.pr_number || env.HEAD_SHA_SHORT }}
+        path: /tmp/validation-report.md
+        retention-days: 30

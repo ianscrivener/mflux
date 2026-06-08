@@ -1,0 +1,75 @@
+name: PR Report Card (upstream)
+
+# ── GOALS ─────────────────────────────────────────────────────────────────────
+# Goal 1: triggers automatically on PRs opened/updated against this repo
+# Goal 2: manual check on a specific PR by number
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: "PR number to validate"
+        required: true
+        type: string
+
+concurrency:
+  group: mflux-report-upstream-${{ github.event.pull_request.number || inputs.pr_number }}
+  cancel-in-progress: true
+
+permissions:
+  pull-requests: write
+  contents: read
+
+jobs:
+  report-card:
+    name: "PR Report Card"
+    runs-on: macos-14
+
+    # Skip draft PRs on automatic trigger; allow all on manual dispatch
+    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.draft == false
+
+    steps:
+
+      # ── Resolve PR context ─────────────────────────────────────────────────
+      # Handles both automatic (pull_request event) and manual (workflow_dispatch) triggers.
+      # On manual dispatch we fetch PR metadata via the GitHub API using the input pr_number.
+      - name: "Resolve PR metadata"
+        id: pr
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            PR_NUMBER="${{ inputs.pr_number }}"
+            DATA=$(gh pr view "$PR_NUMBER" --repo "${{ github.repository }}" \
+              --json number,title,author,headRefOid,baseRefName,baseRefOid)
+            echo "number=$PR_NUMBER"                                       >> $GITHUB_OUTPUT
+            echo "title=$(echo "$DATA"   | jq -r '.title')"               >> $GITHUB_OUTPUT
+            echo "author=$(echo "$DATA"  | jq -r '.author.login')"        >> $GITHUB_OUTPUT
+            echo "head_sha=$(echo "$DATA" | jq -r '.headRefOid')"         >> $GITHUB_OUTPUT
+            echo "base_ref=$(echo "$DATA" | jq -r '.baseRefName')"        >> $GITHUB_OUTPUT
+            echo "base_sha=$(echo "$DATA" | jq -r '.baseRefOid')"         >> $GITHUB_OUTPUT
+          else
+            echo "number=${{ github.event.pull_request.number }}"         >> $GITHUB_OUTPUT
+            echo "title=${{ github.event.pull_request.title }}"           >> $GITHUB_OUTPUT
+            echo "author=${{ github.event.pull_request.user.login }}"     >> $GITHUB_OUTPUT
+            echo "head_sha=${{ github.event.pull_request.head.sha }}"     >> $GITHUB_OUTPUT
+            echo "base_ref=${{ github.event.pull_request.base.ref }}"     >> $GITHUB_OUTPUT
+            echo "base_sha=${{ github.event.pull_request.base.sha }}"     >> $GITHUB_OUTPUT
+          fi
+
+      # ── Run shared report action ───────────────────────────────────────────
+      - name: "Run mflux report card"
+        uses: ./.github/actions/mflux-pr-report
+        with:
+          mode:             "pr"
+          pr_number:        ${{ steps.pr.outputs.number }}
+          pr_title:         ${{ steps.pr.outputs.title }}
+          pr_author:        ${{ steps.pr.outputs.author }}
+          head_sha:         ${{ steps.pr.outputs.head_sha }}
+          base_ref:         ${{ steps.pr.outputs.base_ref }}
+          base_sha:         ${{ steps.pr.outputs.base_sha }}
+          post_pr_comment:  "true"
+          github_token:     ${{ github.token }}
+          repository:       ${{ github.repository }}
