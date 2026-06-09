@@ -212,9 +212,17 @@ def run_bf16(args: argparse.Namespace) -> None:
 def run_nvfp4(args: argparse.Namespace) -> None:
     """Convert the transformer of an nvfp4 pytorch model.
 
-    Wired up in Task 12.
+    This path is a substantial piece of work (NVFP4 pytorch parser, dequant
+    pipeline, NVFP4-aware saver) that depends on a separate branch of work
+    in the user's fork. The CLI surfaces a clear message rather than silently
+    doing the wrong thing.
     """
-    raise NotImplementedError
+    raise NotImplementedError(
+        "mflux-save-advanced: --nvfp4_model conversion is not yet implemented "
+        "in this branch. The CLI is wired up to accept the flag and validate "
+        "the source format, but the transformer-only NVFP4 conversion is "
+        "tracked as a separate piece of work (BRANCH_README Task 2)."
+    )
 
 
 def main(args: argparse.Namespace) -> None:
