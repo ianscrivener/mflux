@@ -1,5 +1,7 @@
 from typing import List
 
+from mlx import nn
+
 from mflux.models.common.config.model_config import ModelConfig
 from mflux.models.common.tokenizer import LanguageTokenizer
 from mflux.models.common.weights.loading.weight_definition import ComponentDefinition, TokenizerDefinition
@@ -61,4 +63,10 @@ class Flux2KleinWeightDefinition:
 
     @staticmethod
     def quantization_predicate(path: str, module) -> bool:
+        # Embedding tables must not be weight-quantized: each row is a discrete
+        # learned vector for one token, and 4-bit FP4 with FP8 E8M0 power-of-two
+        # scales destroys discriminative structure between tokens. This is the
+        # single biggest quality lever for the Qwen3 text encoder.
+        if isinstance(module, nn.Embedding):
+            return False
         return hasattr(module, "to_quantized")

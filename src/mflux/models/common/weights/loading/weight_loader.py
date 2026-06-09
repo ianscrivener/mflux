@@ -52,6 +52,7 @@ class WeightLoader:
         components = {}
         quantization_level = None
         mflux_version = None
+        per_component_quantization_level: dict[str, int | str | None] = {}
         raw_weights_cache: dict[tuple, dict] = {}  # Cache by (path, loading_mode, weight_files)
 
         for component in weight_definition.get_components():
@@ -63,11 +64,15 @@ class WeightLoader:
                 quantization_level = q_level
                 mflux_version = version
 
+            # Per-component: always set, even if None (None means "not pre-quantized")
+            per_component_quantization_level[component.name] = q_level
+
         return LoadedWeights(
             components=components,
             meta_data=MetaData(
                 quantization_level=quantization_level,
                 mflux_version=mflux_version,
+                per_component_quantization_level=per_component_quantization_level,
             ),
         )
 
@@ -166,6 +171,8 @@ class WeightLoader:
         # Convert quantization level from string to int
         if quantization_level_str in (None, "None", "null", ""):
             quantization_level = None
+        elif quantization_level_str == "nvfp4":
+            quantization_level = "nvfp4"
         else:
             quantization_level = int(quantization_level_str)
 

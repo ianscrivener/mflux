@@ -16,7 +16,7 @@ class QuantizationResolution:
     )
 
     @staticmethod
-    def resolve(stored: int | None, requested: int | None) -> tuple[int | None, str | None]:
+    def resolve(stored: int | str | None, requested: int | str | None) -> tuple[int | str | None, str | None]:
         for rule in sorted(QuantizationResolution.RULES, key=lambda r: r.priority):
             if QuantizationResolution._check(rule.check, stored, requested):
                 logger.debug(
@@ -40,13 +40,14 @@ class QuantizationResolution:
         return False
 
     @staticmethod
-    def _execute(rule: Rule, stored: int | None, requested: int | None) -> tuple[int | None, str | None]:
+    def _execute(rule: Rule, stored: int | str | None, requested: int | str | None) -> tuple[int | str | None, str | None]:
         if rule.action == QuantizationAction.NONE:
             return None, None
         if rule.action == QuantizationAction.REQUESTED:
             return requested, None
         if rule.action == QuantizationAction.STORED:
             warn = rule.name == "conflict" and stored != requested
-            warning = f"Model is pre-quantized at {stored}-bit. Ignoring -q {requested} flag." if warn else None
+            stored_label = stored if isinstance(stored, str) else f"{stored}-bit"
+            warning = f"Model is pre-quantized ({stored_label}). Ignoring -q {requested} flag." if warn else None
             return stored, warning
         return None, None

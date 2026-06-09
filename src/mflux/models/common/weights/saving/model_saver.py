@@ -19,7 +19,7 @@ class ModelSaver:
     @staticmethod
     def save_model(
         model: Any,
-        bits: int,
+        bits: int | str | None,
         base_path: str,
         weight_definition: "WeightDefinitionType",
     ) -> None:
@@ -47,7 +47,7 @@ class ModelSaver:
         tokenizer.save_pretrained(path)
 
     @staticmethod
-    def _save_weights(base_path: str, bits: int, model: nn.Module, subdir: str) -> None:
+    def _save_weights(base_path: str, bits: int | str | None, model: nn.Module, subdir: str) -> None:
         path = Path(base_path) / subdir
         path.mkdir(parents=True, exist_ok=True)
         weights = dict(tree_flatten(model.parameters()))

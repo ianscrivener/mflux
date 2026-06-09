@@ -56,7 +56,7 @@ MODEL_INFERENCE_STEPS = {
     "ideogram4": 20,
     "ideogram-4-fp8": 20,
 }
-QUANTIZE_CHOICES = [3, 5, 4, 6, 8]
+QUANTIZE_CHOICES = [3, 5, 4, 6, 8, "nvfp4"]
 
 if os.environ.get("MFLUX_CACHE_DIR"):
     MFLUX_CACHE_DIR = Path(os.environ["MFLUX_CACHE_DIR"]).resolve()

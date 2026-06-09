@@ -12,7 +12,7 @@ from mflux.models.flux2.variants.txt2img.flux2_klein import Flux2Klein
 
 
 class Flux2TrainingAdapter(Flux2BaseTrainingAdapter):
-    def __init__(self, *, model_config: ModelConfig, quantize: int | None, model_path: str | None = None):
+    def __init__(self, *, model_config: ModelConfig, quantize: int | str | None, model_path: str | None = None):
         super().__init__(
             model_config=model_config,
             quantize=quantize,

@@ -24,8 +24,8 @@ class Flux2BaseTrainingAdapter(TrainingAdapter):
         self,
         *,
         model_config: ModelConfig,
-        quantize: int | None,
-        model_factory: Callable[[ModelConfig, int | None], Any],
+        quantize: int | str | None,
+        model_factory: Callable[[ModelConfig, int | str | None], Any],
     ):
         self._model_config = model_config
         self._flux2 = model_factory(model_config, quantize)

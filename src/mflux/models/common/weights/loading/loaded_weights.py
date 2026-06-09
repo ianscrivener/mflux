@@ -1,10 +1,15 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 
 @dataclass
 class MetaData:
-    quantization_level: int | None = None
+    quantization_level: int | str | None = None
     mflux_version: str | None = None
+    # Per-component quantization level, populated by the loader.
+    # Keyed by component name (e.g. "text_encoder", "transformer", "vae").
+    # If a component is missing from this dict, fall back to quantization_level
+    # for backward compatibility.
+    per_component_quantization_level: dict[str, int | str | None] = field(default_factory=dict)
 
 
 @dataclass

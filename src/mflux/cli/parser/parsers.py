@@ -12,6 +12,15 @@ from mflux.models.flux.variants.in_context.utils.in_context_loras import LORA_NA
 from mflux.utils import box_values, scale_factor
 
 
+def _quantize_type(value: str) -> int | str:
+    if value == "nvfp4":
+        return value
+    try:
+        return int(value)
+    except ValueError:
+        raise argparse.ArgumentTypeError(f"Invalid quantization value: {value!r}")
+
+
 class ModelSpecAction(argparse.Action):
     def __call__(self, parser, namespace, values, option_string=None):
         setattr(namespace, self.dest, values)
@@ -87,7 +96,7 @@ class CommandLineParser(argparse.ArgumentParser):
         if path_type == "save":
             self.add_argument("--path", type=str, required=True, help="Local path for saving a model to disk.")
         self.add_argument("--base-model", type=str, required=False, choices=ui_defaults.MODEL_CHOICES, help="When using a third-party huggingface model, explicitly specify whether the base model is dev or schnell")
-        self.add_argument("--quantize",  "-q", type=int, choices=ui_defaults.QUANTIZE_CHOICES, default=None, help=f"Quantize the model ({' or '.join(map(str, ui_defaults.QUANTIZE_CHOICES))}, Default is None)")
+        self.add_argument("--quantize",  "-q", type=_quantize_type, choices=ui_defaults.QUANTIZE_CHOICES, default=None, help=f"Quantize the model ({' or '.join(map(str, ui_defaults.QUANTIZE_CHOICES))}, Default is None)")
 
     def add_lora_arguments(self) -> None:
         self.supports_lora = True
@@ -159,7 +168,7 @@ class CommandLineParser(argparse.ArgumentParser):
 
     def add_save_depth_arguments(self) -> None:
         self.add_argument("--image-path", type=Path, required=True, help="Local path to the source image")
-        self.add_argument("--quantize",  "-q", type=int, choices=ui_defaults.QUANTIZE_CHOICES, default=None, required=False, help=f"Quantize the model ({' or '.join(map(str, ui_defaults.QUANTIZE_CHOICES))}, Default is None)")
+        self.add_argument("--quantize",  "-q", type=_quantize_type, choices=ui_defaults.QUANTIZE_CHOICES, default=None, required=False, help=f"Quantize the model ({' or '.join(map(str, ui_defaults.QUANTIZE_CHOICES))}, Default is None)")
 
     def add_redux_arguments(self) -> None:
         self.add_argument("--redux-image-paths", type=Path, nargs="*", required=True, help="Local path to the source image")

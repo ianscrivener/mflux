@@ -28,7 +28,7 @@ class Flux2Klein(nn.Module):
 
     def __init__(
         self,
-        quantize: int | None = None,
+        quantize: int | str | None = None,
         model_path: str | None = None,
         lora_paths: list[str] | None = None,
         lora_scales: list[float] | None = None,
