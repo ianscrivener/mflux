@@ -31,6 +31,7 @@ class CompletionGenerator:
             "mflux-concept",
             "mflux-concept-from-image",
             "mflux-save",
+            "mflux-save-advanced",
             "mflux-save-depth",
             "mflux-train",
             "mflux-upscale-controlnet",
@@ -225,6 +226,10 @@ class CompletionGenerator:
 
         elif command == "mflux-save":
             parser.add_model_arguments(path_type="save", require_model_arg=True)
+
+        elif command == "mflux-save-advanced":
+            parser.add_general_arguments()
+            parser.add_save_advanced_arguments()
 
         elif command == "mflux-save-depth":
             parser.add_save_depth_arguments()
