@@ -52,12 +52,22 @@ class WeightApplier:
     def apply_and_quantize(
         weights: LoadedWeights,
         models: dict[str, nn.Module],
-        quantize_arg: int | None,
+        quantize_arg: int | dict[str, int | None] | None,
         weight_definition: "WeightDefinitionType",
-    ) -> int | None:
+    ) -> int | dict[str, int | None] | None:
         stored_q = weights.meta_data.quantization_level
         component_quant_levels = weights.meta_data.component_quantization_levels
         components = {c.name: c for c in weight_definition.get_components()}
+
+        # CLI-supplied per-component spec: only convert components named in the dict.
+        if isinstance(quantize_arg, dict):
+            return WeightApplier._apply_from_cli_dict(
+                weights=weights,
+                models=models,
+                components=components,
+                quantize_dict=quantize_arg,
+                weight_definition=weight_definition,
+            )
 
         if component_quant_levels:
             return WeightApplier._apply_per_component(
@@ -85,6 +95,56 @@ class WeightApplier:
             WeightApplier._set_weights(weights, models, components)
 
         return bits
+
+    @staticmethod
+    def _apply_from_cli_dict(
+        weights: LoadedWeights,
+        models: dict[str, nn.Module],
+        components: dict,
+        quantize_dict: dict[str, int | None],
+        weight_definition: "WeightDefinitionType",
+    ) -> dict[str, int | None]:
+        """Apply a CLI-supplied per-component quantization spec.
+
+        For each component in `quantize_dict`:
+          - load the source weights for that component
+          - if the value is an int, quantize at that bit width
+          - if the value is None, leave the weights in bf16
+
+        Components not present in `quantize_dict` are skipped entirely (the
+        corresponding model attribute is not updated). This is what makes the
+        per-component save flow work — ModelSaver then never sees a
+        `component` for that subdir.
+        """
+        result: dict[str, int | None] = {}
+        for name, requested in quantize_dict.items():
+            if name not in models:
+                # The dict references a component the model doesn't have. Skip.
+                continue
+            model = models[name]
+            component = components.get(name)
+            component_weights = weights.components.get(name)
+            if component_weights is None:
+                continue
+            if component is not None and component.weight_subkey is not None:
+                component_weights = component_weights.get(component.weight_subkey, component_weights)
+
+            if requested is None:
+                # bf16 — no quantization
+                model.update(component_weights, strict=False)
+            else:
+                if component is not None and component.skip_quantization:
+                    # Honor skip_quantization even when the CLI requested bits.
+                    model.update(component_weights, strict=False)
+                else:
+                    model.update(component_weights, strict=False)
+                    nn.quantize(
+                        model,
+                        class_predicate=weight_definition.quantization_predicate,
+                        bits=requested,
+                    )
+            result[name] = requested
+        return result
 
     @staticmethod
     def _apply_per_component(
