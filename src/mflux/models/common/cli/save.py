@@ -11,6 +11,32 @@ from mflux.models.qwen.variants.txt2img.qwen_image import QwenImage
 from mflux.models.z_image import ZImage, ZImageTurbo
 
 
+def resolve_model_class(args):
+    """Pick a model class from CLI args.
+
+    Reused by mflux-save and mflux-save-advanced.
+    """
+    model_name_lower = args.model.lower()
+    base_model_lower = (args.base_model or "").lower()
+    if "ernie" in model_name_lower:
+        return ErnieImage
+    if "qwen" in model_name_lower and "edit" in model_name_lower:
+        return QwenImageEdit
+    if "qwen" in model_name_lower:
+        return QwenImage
+    if "fibo" in model_name_lower:
+        return FIBO
+    if "z-image-turbo" in model_name_lower or "zimage-turbo" in model_name_lower:
+        return ZImageTurbo
+    if "z-image" in model_name_lower or "zimage" in model_name_lower:
+        return ZImage
+    if "flux2" in model_name_lower or "flux.2" in model_name_lower:
+        return Flux2Klein
+    if "ideogram" in model_name_lower or "ideogram" in base_model_lower:
+        return Ideogram4
+    return Flux1
+
+
 def main():
     # 0. Parse command line arguments
     parser = CommandLineParser(description="Save a quantized version of a model to disk.")  # fmt: off
@@ -19,26 +45,7 @@ def main():
     args = parser.parse_args()
 
     # 1. Determine model class based on model name
-    model_name_lower = args.model.lower()
-    base_model_lower = (args.base_model or "").lower()
-    if "ernie" in model_name_lower:
-        model_class = ErnieImage
-    elif "qwen" in model_name_lower and "edit" in model_name_lower:
-        model_class = QwenImageEdit
-    elif "qwen" in model_name_lower:
-        model_class = QwenImage
-    elif "fibo" in model_name_lower:
-        model_class = FIBO
-    elif "z-image-turbo" in model_name_lower or "zimage-turbo" in model_name_lower:
-        model_class = ZImageTurbo
-    elif "z-image" in model_name_lower or "zimage" in model_name_lower:
-        model_class = ZImage
-    elif "flux2" in model_name_lower or "flux.2" in model_name_lower:
-        model_class = Flux2Klein
-    elif "ideogram" in model_name_lower or "ideogram" in base_model_lower:
-        model_class = Ideogram4
-    else:
-        model_class = Flux1
+    model_class = resolve_model_class(args)
 
     if model_class is Ideogram4:
         model_config = Ideogram4WeightDefinition.resolve_inference_config(
