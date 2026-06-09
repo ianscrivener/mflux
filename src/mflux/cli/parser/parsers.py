@@ -161,6 +161,100 @@ class CommandLineParser(argparse.ArgumentParser):
         self.add_argument("--image-path", type=Path, required=True, help="Local path to the source image")
         self.add_argument("--quantize",  "-q", type=int, choices=ui_defaults.QUANTIZE_CHOICES, default=None, required=False, help=f"Quantize the model ({' or '.join(map(str, ui_defaults.QUANTIZE_CHOICES))}, Default is None)")
 
+    def add_save_advanced_arguments(self) -> None:
+        """Arguments for mflux-save-advanced: per-component quantization.
+
+        Source model is one of two mutually exclusive forms:
+          --bf16_model    HuggingFace repo (org/model) or local path to a bf16
+                          pytorch-safetensors model.
+          --nvfp4_model   HuggingFace repo (org/model) or local path to a nvfp4
+                          pytorch-safetensors model (transformer-only output).
+
+        Quantization is per-component and optional. A component is only
+        converted when its --quantize_XXX flag is supplied. "bf16" is an
+        explicit sentinel for "do not quantize this component".
+
+        The model class is dispatched from the source path, not from a
+        --model flag, so we opt out of require_model_arg.
+        """
+        self.require_model_arg = False
+        model_group = self.add_argument_group("Source model (mutually exclusive)")
+        me = model_group.add_mutually_exclusive_group(required=True)
+        me.add_argument(
+            "--bf16_model",
+            type=str,
+            help=(
+                "HuggingFace repo (org/model) or local path to a bf16 "
+                "pytorch-safetensors model."
+            ),
+        )
+        me.add_argument(
+            "--nvfp4_model",
+            type=str,
+            help=(
+                "HuggingFace repo (org/model) or local path to a nvfp4 "
+                "pytorch-safetensors model. Transformer is saved; VAE and "
+                "text encoder are out of scope for the nvfp4 path."
+            ),
+        )
+
+        quantize_group = self.add_argument_group(
+            "Per-component quantization (each flag is optional; components "
+            "without a flag are skipped entirely)"
+        )
+        quantize_group.add_argument(
+            "--quantize_vae",
+            type=str,
+            choices=ui_defaults.QUANTIZE_ADVANCED_CHOICES,
+            default=None,
+            help=(
+                "Quantize the VAE component. 'bf16' (no quantization) or "
+                "3/4/5/6/8 bits."
+            ),
+        )
+        quantize_group.add_argument(
+            "--quantize_transformer",
+            type=str,
+            choices=ui_defaults.QUANTIZE_ADVANCED_CHOICES,
+            default=None,
+            help=(
+                "Quantize the transformer component. 'bf16' (no quantization) "
+                "or 3/4/5/6/8 bits."
+            ),
+        )
+        quantize_group.add_argument(
+            "--quantize_text_encoder",
+            type=str,
+            choices=ui_defaults.QUANTIZE_ADVANCED_CHOICES,
+            default=None,
+            help=(
+                "Quantize the text encoder component. 'bf16' (no quantization) "
+                "or 3/4/5/6/8 bits."
+            ),
+        )
+
+        self.add_argument(
+            "--path",
+            type=str,
+            required=True,
+            help="Local path to save the converted model to.",
+        )
+        self.add_argument(
+            "--base-model",
+            type=str,
+            required=False,
+            choices=ui_defaults.MODEL_CHOICES,
+            help=(
+                "(Flux1 only) When using a third-party HuggingFace model, "
+                "explicitly specify whether the base model is dev or schnell."
+            ),
+        )
+        self.add_argument(
+            "--force",
+            action="store_true",
+            help="Overwrite the destination directory without prompting.",
+        )
+
     def add_redux_arguments(self) -> None:
         self.add_argument("--redux-image-paths", type=Path, nargs="*", required=True, help="Local path to the source image")
         self.add_argument("--redux-image-strengths", type=float, nargs="*", default=None, help="Strength values (between 0.0 and 1.0) for each reference image. Default is 1.0 for all images.")
@@ -244,8 +338,18 @@ class CommandLineParser(argparse.ArgumentParser):
         has_training_args = (hasattr(namespace, "config") and namespace.config is not None) or \
                             (hasattr(namespace, "resume") and namespace.resume is not None)
 
-        # Only enforce model requirement for path if we're not in training mode
-        if hasattr(namespace, "path") and namespace.path is not None and namespace.model is None and not has_training_args:
+        # Only enforce model requirement for path if we're not in training mode.
+        # Use getattr with a default so CLIs that don't register --model (e.g.
+        # mflux-save-advanced, which derives the model class from the source
+        # path) don't crash with AttributeError. The check itself is also
+        # gated on require_model_arg so CLIs that opted out of --model are
+        # never asked to supply it.
+        if (
+            getattr(namespace, "path", None) is not None
+            and getattr(namespace, "model", None) is None
+            and not has_training_args
+            and getattr(self, "require_model_arg", True)
+        ):
             self.error("--model must be specified when using --path")
 
         if getattr(namespace, "config_from_metadata", False):

@@ -59,8 +59,10 @@ MODEL_INFERENCE_STEPS = {
 QUANTIZE_CHOICES = [3, 5, 4, 6, 8]
 # For mflux-save-advanced: adds an explicit "bf16" sentinel so users can request
 # an un-quantized (bfloat16) component, alongside the existing bit choices.
-# The string sentinel is first so argparse `choices` lists read sensibly.
-QUANTIZE_ADVANCED_CHOICES = ["bf16", 3, 4, 5, 6, 8]
+# All strings: argparse `type=str, choices=[...]` cannot match a CLI string
+# input like "8" against an int choice; mixing types silently rejects the
+# string "8" as "invalid choice". Cast to str at the runner boundary instead.
+QUANTIZE_ADVANCED_CHOICES = ["bf16", "3", "4", "5", "6", "8"]
 
 if os.environ.get("MFLUX_CACHE_DIR"):
     MFLUX_CACHE_DIR = Path(os.environ["MFLUX_CACHE_DIR"]).resolve()
