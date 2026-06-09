@@ -19,7 +19,7 @@ class ModelSaver:
     @staticmethod
     def save_model(
         model: Any,
-        bits: int,
+        bits: int | dict[str, int | None] | None,
         base_path: str,
         weight_definition: "WeightDefinitionType",
     ) -> None:
@@ -38,7 +38,15 @@ class ModelSaver:
             if component is not None:
                 # Bake and strip any LoRA wrappers to avoid duplicating shared weights
                 LoRASaver.bake_and_strip_lora(component)
-                ModelSaver._save_weights(base_path, bits, component, subdir)
+                # Resolve the per-subdir bits value:
+                #   - dict  -> look up subdir, fall back to bf16 if missing
+                #   - int   -> use the same value for every subdir (legacy behaviour)
+                #   - None  -> bf16 (no quantization)
+                if isinstance(bits, dict):
+                    sub_bits: int | None = bits.get(subdir)
+                else:
+                    sub_bits = bits
+                ModelSaver._save_weights(base_path, sub_bits, component, subdir)
 
     @staticmethod
     def _save_tokenizer(base_path: str, tokenizer: PreTrainedTokenizer, subdir: str) -> None:
@@ -47,11 +55,23 @@ class ModelSaver:
         tokenizer.save_pretrained(path)
 
     @staticmethod
-    def _save_weights(base_path: str, bits: int, model: nn.Module, subdir: str) -> None:
+    def _save_weights(
+        base_path: str,
+        bits: int | None,
+        model: nn.Module,
+        subdir: str,
+    ) -> None:
         path = Path(base_path) / subdir
         path.mkdir(parents=True, exist_ok=True)
         weights = dict(tree_flatten(model.parameters()))
         shards = ModelSaver._split_weights(weights)
+
+        # bits=None means "bf16" (no quantization). Keep the on-disk representation
+        # consistent with how the legacy single-bits path wrote the metadata.
+        if bits is None:
+            quant_level_str = "bf16"
+        else:
+            quant_level_str = str(bits)
 
         # Build weight_map for index.json (maps each weight key to its shard file)
         weight_map = {}
@@ -62,7 +82,7 @@ class ModelSaver:
                 str(path / shard_filename),
                 shard,
                 {
-                    "quantization_level": str(bits),
+                    "quantization_level": quant_level_str,
                     "mflux_version": VersionUtil.get_mflux_version(),
                 },
             )
@@ -74,7 +94,7 @@ class ModelSaver:
         # This ensures the saved model works even if custom metadata is stripped
         index_data = {
             "metadata": {
-                "quantization_level": str(bits),
+                "quantization_level": quant_level_str,
                 "mflux_version": VersionUtil.get_mflux_version(),
             },
             "weight_map": weight_map,
