@@ -39,16 +39,30 @@
    3. **text_encoder** quality matters least. Models are also large (8Gb for q8).
        
 **Improvements in this branch**
-1. Add `mflux-save-advanced`to convert models with separately quantizations for vae, transformer and text_encoder
+1. Add `mflux-save-advanced` to convert models with separately quantizations for vae, transformer and text_encoder
      `mflux-save-advanced`
      `  --bf16_model `
-     `  --quantize_vae               # 3, 4, 5, 6, 8, bf16`
-     `  --quantize_transformer       # 3, 4, 5, 6, 8, bf16`
-     `  --quantize_text_encoder      # 3, 4, 5, 6, 8, bf16`
+     `  --quantize_vae               # bf16, 3, 4, 5, 6 or 8`
+     `  --quantize_transformer       # bf16, 3, 4, 5, 6 or 8`
+     `  --quantize_text_encoder      # bf16, 3, 4, 5, 6 or 8`
+     `  --path PATH                  # local output dir`
+     `  --force                      # skip overwrite prompt`
      
+   Status (this branch): implemented end-to-end. `mflux-save` is unchanged. The CLI
+   validates the source is bf16 pytorch safetensors (rejects mflux-saved inputs),
+   prompts for overwrite on a TTY (refuses in non-TTY unless --force is set), and
+   dispatches on the source path to pick an architecture class.
+   
 2. Support conversion from *nvfp4 pytorch safetensors format* to *MLX safetensors* format for transformers only
 	   `mflux-save-advanced`
 	   `  --nvfp4_model `
 	    ` --quantize_transformer      # nvfp4 only`
-   
+	    
+   Status (this branch): CLI surface is in place — `--nvfp4_model` is mutually
+   exclusive with `--bf16_model`, and the source is validated as nvfp4 pytorch
+   safetensors. The actual transformer-only conversion is **not yet implemented**
+   on this branch (the `scriv-nvfp4` work is a one-commit "false start"; the real
+   NVFP4 pytorch parser + dequant pipeline + NVFP4-aware saver is tracked as a
+   follow-up). Calling the flag today surfaces a clear NotImplementedError with
+   the next steps. 
 

@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### ✨ Improvements
+
+- **`mflux-save-advanced`**: New CLI for converting pytorch/HuggingFace models to the mflux MLX safetensors format with **per-component quantization**. Each of `--quantize_vae`, `--quantize_transformer`, `--quantize_text_encoder` is independent and accepts `'bf16'` (no quantization) or `3`/`4`/`5`/`6`/`8` bits. Components whose flag is omitted are skipped entirely (no subdir is written for them). Source format (bf16 pytorch) is validated before any work happens; an overwrite prompt is shown unless `--force` is passed. `mflux-save` is unchanged.
+- **`ModelSaver` per-component metadata**: The bits value passed to `ModelSaver.save_model` may now be a `dict[str, int | None]` mapping each component subdir to its quantization level. The legacy `int` form is preserved unchanged.
+- **`WeightApplier` per-component CLI spec**: A new `_apply_from_cli_dict` path in `WeightApplier` handles the CLI-supplied per-component dict, leaving `apply_and_quantize` and the existing `_apply_per_component` metadata-driven path untouched.
+
 ## [0.18.0] - 2026-06-07
 
 ### 🎨 New Model Support
