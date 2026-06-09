@@ -17,7 +17,7 @@ class Flux2Initializer:
     def init(
         model,
         model_config: ModelConfig,
-        quantize: int | None,
+        quantize: int | dict[str, int | None] | None,
         model_path: str | None = None,
         lora_paths: list[str] | None = None,
         lora_scales: list[float] | None = None,
@@ -66,7 +66,7 @@ class Flux2Initializer:
         model.text_encoder = Qwen3TextEncoder(**model.model_config.text_encoder_overrides)
 
     @staticmethod
-    def _apply_weights(model, weights: LoadedWeights, quantize: int | None) -> None:
+    def _apply_weights(model, weights: LoadedWeights, quantize: int | dict[str, int | None] | None) -> None:
         model.bits = WeightApplier.apply_and_quantize(
             weights=weights,
             quantize_arg=quantize,
