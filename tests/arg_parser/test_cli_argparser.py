@@ -40,7 +40,7 @@ def mflux_generate_controlnet_parser() -> CommandLineParser:
 def mflux_save_parser() -> CommandLineParser:
     parser = CommandLineParser(description="Save a quantized version of Flux.1 to disk.")  # fmt: off
     parser.add_general_arguments()
-    parser.add_model_arguments(path_type="save", require_model_arg=True)
+    parser.add_model_arguments(path_type="save", require_model_arg=True, allow_nvfp4=True)
     parser.add_lora_arguments()
     return parser
 
@@ -709,6 +709,11 @@ def test_save_args(mflux_save_parser):
         # required --path not provided, exits to error
         args = mflux_save_parser.parse_args()
         assert args.path == "/some/model/folder"
+    with patch(
+        "sys.argv", ["mflux-save", "--model", "Z-Image-Turbo", "--path", "/some/model/folder", "--quantize", "nvfp4"]
+    ):
+        args = mflux_save_parser.parse_args()
+        assert args.quantize == "nvfp4"
 
 
 @pytest.mark.fast
@@ -1347,7 +1352,7 @@ def test_fibo_edit_rejects_non_edit_model_restored_from_metadata(mflux_fibo_edit
 def mflux_z_image_turbo_parser() -> CommandLineParser:
     parser = CommandLineParser(description="Generate an image using Z-Image Turbo.")
     parser.add_general_arguments()
-    parser.add_model_arguments(require_model_arg=False)
+    parser.add_model_arguments(require_model_arg=False, allow_nvfp4=True)
     parser.add_lora_arguments()
     parser.add_image_generator_arguments(supports_metadata_config=True)
     parser.add_image_to_image_arguments(required=False)
@@ -1371,6 +1376,10 @@ def test_z_image_turbo_args(mflux_z_image_turbo_parser, mflux_z_image_turbo_mini
     with patch("sys.argv", mflux_z_image_turbo_minimal_argv + ["--quantize", "8"]):
         args = mflux_z_image_turbo_parser.parse_args()
         assert args.quantize == 8
+
+    with patch("sys.argv", mflux_z_image_turbo_minimal_argv + ["--quantize", "nvfp4"]):
+        args = mflux_z_image_turbo_parser.parse_args()
+        assert args.quantize == "nvfp4"
 
     # Test with image-to-image
     with patch("sys.argv", mflux_z_image_turbo_minimal_argv + ["--image-path", "input.png", "--image-strength", "0.6"]):

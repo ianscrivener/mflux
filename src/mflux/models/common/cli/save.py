@@ -15,7 +15,7 @@ from mflux.models.z_image import ZImage, ZImageTurbo
 def main():
     # 0. Parse command line arguments
     parser = CommandLineParser(description="Save a quantized version of a model to disk.")  # fmt: off
-    parser.add_model_arguments(path_type="save", require_model_arg=True)
+    parser.add_model_arguments(path_type="save", require_model_arg=True, allow_nvfp4=True)
     parser.add_lora_arguments()
     args = parser.parse_args()
 
@@ -43,6 +43,9 @@ def main():
         model_class = Krea2
     else:
         model_class = Flux1
+
+    if args.quantize == "nvfp4" and model_class is not ZImageTurbo:
+        parser.error("--quantize nvfp4 is currently supported only for Z-Image Turbo")
 
     if model_class is Ideogram4:
         model_config = Ideogram4WeightDefinition.resolve_inference_config(

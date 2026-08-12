@@ -23,7 +23,7 @@ class GeneratedImage:
         steps: int,
         guidance: float | None,
         precision: mx.Dtype,
-        quantization: int,
+        quantization: int | str | None,
         generation_time: float,
         lora_paths: list[str] | None = None,
         lora_scales: list[float] | None = None,

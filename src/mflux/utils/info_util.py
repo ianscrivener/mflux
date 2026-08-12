@@ -61,7 +61,8 @@ class InfoUtil:
 
         # Technical settings
         if quantize := exif.get("quantize"):
-            lines.append(f"Quantization: {quantize}-bit")
+            level = quantize if quantize == "nvfp4" else f"{quantize}-bit"
+            lines.append(f"Quantization: {level}")
         if precision := exif.get("precision"):
             lines.append(f"Precision: {precision}")
 
@@ -92,7 +93,8 @@ class InfoUtil:
             if (orig_guidance := exif.get("original_guidance")) is not None:
                 lines.append(f"  - Guidance: {orig_guidance}")
             if (orig_quantize := exif.get("original_quantize")) is not None:
-                lines.append(f"  - Quantization: {orig_quantize}-bit")
+                level = orig_quantize if orig_quantize == "nvfp4" else f"{orig_quantize}-bit"
+                lines.append(f"  - Quantization: {level}")
 
             if orig_lora_paths := exif.get("original_lora_paths"):
                 lines.append(f"  - LoRAs ({len(orig_lora_paths)}):")

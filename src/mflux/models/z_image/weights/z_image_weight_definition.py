@@ -16,6 +16,7 @@ class ZImageWeightDefinition:
                 num_blocks=4,
                 precision=ModelConfig.precision,
                 mapping_getter=ZImageWeightMapping.get_vae_mapping,
+                skip_quantization_modes=frozenset({"nvfp4"}),
             ),
             ComponentDefinition(
                 name="transformer",

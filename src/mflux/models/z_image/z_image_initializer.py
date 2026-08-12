@@ -17,7 +17,7 @@ class ZImageInitializer:
     def init(
         model,
         model_config: ModelConfig,
-        quantize: int | None,
+        quantize: int | str | None,
         model_path: str | None = None,
         lora_paths: list[str] | None = None,
         lora_scales: list[float] | None = None,
@@ -58,7 +58,7 @@ class ZImageInitializer:
         model.text_encoder = TextEncoder()
 
     @staticmethod
-    def _apply_weights(model, weights: LoadedWeights, quantize: int | None) -> None:
+    def _apply_weights(model, weights: LoadedWeights, quantize: int | str | None) -> None:
         model.bits = WeightApplier.apply_and_quantize(
             weights=weights,
             quantize_arg=quantize,

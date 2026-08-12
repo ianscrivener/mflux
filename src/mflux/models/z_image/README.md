@@ -89,6 +89,24 @@ image.save("z_image_turbo.png")
 > [!WARNING]
 > Note: Z-Image weights are large (~31GB). Use quantization for smaller sizes.
 
+## NVFP4 Turbo Checkpoints
+
+On MLX 0.32 or newer, `mflux-save` can create an NVFP4 checkpoint for Z-Image Turbo. The transformer and text encoder use NVFP4; the VAE remains bf16.
+
+```sh
+mflux-save \
+  --model Tongyi-MAI/Z-Image-Turbo \
+  --quantize nvfp4 \
+  --path /Volumes/Extreme2Tb/MFlux-Models/Tongyi-MAI--Z-Image-Turbo-MFlux-nvfp4
+
+mflux-generate-z-image-turbo \
+  --model /Volumes/Extreme2Tb/MFlux-Models/Tongyi-MAI--Z-Image-Turbo-MFlux-nvfp4 \
+  --prompt "A sunlit coastal village, painterly detail" \
+  --steps 9
+```
+
+NVFP4 is currently supported only for Z-Image Turbo.
+
 ## Training
 
 Use `mflux-train` with a training config that targets `z-image` or `z-image-turbo`. We automatically load the Z-Image Turbo training adapter ([ostris/zimage_turbo_training_adapter](https://huggingface.co/ostris/zimage_turbo_training_adapter)) only when training the turbo model; base Z-Image training does not use the assistant LoRA. You can start from the [example config](../common/training/_example/train.json). For the data/images folder layout, see the common training docs ([Training (LoRA)](../common/README.md#training-lora)).

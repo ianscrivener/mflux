@@ -16,9 +16,9 @@ class WeightApplier:
         weights: LoadedWeights,
         model: nn.Module,
         component: ComponentDefinition,
-        quantize_arg: int | None,
+        quantize_arg: int | str | None,
         quantization_predicate=None,
-    ) -> int | None:
+    ) -> int | str | None:
         stored_q = weights.meta_data.quantization_level
         component_weights = weights.components.get(component.name)
 
@@ -39,10 +39,10 @@ class WeightApplier:
             model.update(component_weights, strict=False)
         elif stored_q is None:
             model.update(component_weights, strict=False)
-            if not component.skip_quantization:
+            if not component.skip_quantization and bits not in component.skip_quantization_modes:
                 nn.quantize(model, class_predicate=quantization_predicate, bits=bits)
         else:
-            if not component.skip_quantization:
+            if not component.skip_quantization and bits not in component.skip_quantization_modes:
                 nn.quantize(model, class_predicate=quantization_predicate, bits=bits)
             model.update(component_weights, strict=False)
 
@@ -52,9 +52,9 @@ class WeightApplier:
     def apply_and_quantize(
         weights: LoadedWeights,
         models: dict[str, nn.Module],
-        quantize_arg: int | None,
+        quantize_arg: int | str | None,
         weight_definition: "WeightDefinitionType",
-    ) -> int | None:
+    ) -> int | str | None:
         stored_q = weights.meta_data.quantization_level
         components = {c.name: c for c in weight_definition.get_components()}
 
@@ -92,12 +92,24 @@ class WeightApplier:
     @staticmethod
     def _quantize(
         models: dict[str, nn.Module],
-        bits: int,
+        bits: int | str,
         components: dict,
         weight_definition: "WeightDefinitionType",
     ) -> None:
         for name, model in models.items():
             component = components.get(name)
-            if component and component.skip_quantization:
+            if component and (component.skip_quantization or bits in component.skip_quantization_modes):
                 continue
-            nn.quantize(model, class_predicate=weight_definition.quantization_predicate, bits=bits)
+            if bits == "nvfp4":
+                WeightApplier._quantize_nvfp4(model, weight_definition)
+            else:
+                nn.quantize(model, class_predicate=weight_definition.quantization_predicate, bits=bits)
+
+    @staticmethod
+    def _quantize_nvfp4(model: nn.Module, weight_definition: "WeightDefinitionType") -> None:
+        def predicate(path: str, module: nn.Module) -> bool | dict:
+            if isinstance(module, nn.Linear) and weight_definition.quantization_predicate(path, module):
+                return {"mode": "nvfp4", "group_size": 16, "bits": 4}
+            return False
+
+        nn.quantize(model, class_predicate=predicate)

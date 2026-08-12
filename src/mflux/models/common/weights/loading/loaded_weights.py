@@ -3,7 +3,7 @@ from dataclasses import dataclass
 
 @dataclass
 class MetaData:
-    quantization_level: int | None = None
+    quantization_level: int | str | None = None
     mflux_version: str | None = None
 
 

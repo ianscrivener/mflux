@@ -39,6 +39,7 @@ class ComponentDefinition:
     loading_mode: str = "mlx_native"
     precision: mx.Dtype | None = None
     skip_quantization: bool = False
+    skip_quantization_modes: frozenset[str] = field(default_factory=frozenset)
     bulk_transform: Callable[[mx.array], mx.array] | None = None
     weight_subkey: str | None = None
     download_url: str | None = None

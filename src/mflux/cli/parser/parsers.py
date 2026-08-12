@@ -54,6 +54,15 @@ def positive_float(value: str) -> float:
     return parsed
 
 
+def quantization_level(value: str) -> int | str:
+    if value == "nvfp4":
+        return value
+    try:
+        return int(value)
+    except ValueError as error:
+        raise argparse.ArgumentTypeError(f"'{value}' is not a supported quantization level") from error
+
+
 # fmt: off
 class CommandLineParser(argparse.ArgumentParser):
 
@@ -90,13 +99,19 @@ class CommandLineParser(argparse.ArgumentParser):
         seedvr2_group.add_argument("--resolution", "-r", type=int_or_special_value, default=384, help="Target resolution for the shortest edge (pixels) or scale factor (e.g., '2x').")
         seedvr2_group.add_argument("--softness", type=float, default=0.0, help="Value between 0.0 (off, factor 1) and 1.0 (max, factor 8). Default: 0.0.")
 
-    def add_model_arguments(self, path_type: t.Literal["load", "save"] = "load", require_model_arg: bool = True) -> None:
+    def add_model_arguments(
+        self,
+        path_type: t.Literal["load", "save"] = "load",
+        require_model_arg: bool = True,
+        allow_nvfp4: bool = False,
+    ) -> None:
         self.require_model_arg = require_model_arg
         self.add_argument("--model", "-m", type=str, required=require_model_arg, action=ModelSpecAction, help=f"The model to use ({' or '.join(ui_defaults.MODEL_CHOICES)}, a HuggingFace repo org/model, or a local path).")
         if path_type == "save":
             self.add_argument("--path", type=str, required=True, help="Local path for saving a model to disk.")
         self.add_argument("--base-model", type=str, required=False, choices=ui_defaults.MODEL_CHOICES, help="When using a third-party huggingface model, explicitly specify whether the base model is dev or schnell")
-        self.add_argument("--quantize",  "-q", type=int, choices=ui_defaults.QUANTIZE_CHOICES, default=None, help=f"Quantize the model ({' or '.join(map(str, ui_defaults.QUANTIZE_CHOICES))}, Default is None)")
+        quantize_choices = [*ui_defaults.QUANTIZE_CHOICES, "nvfp4"] if allow_nvfp4 else ui_defaults.QUANTIZE_CHOICES
+        self.add_argument("--quantize",  "-q", type=quantization_level, choices=quantize_choices, default=None, help=f"Quantize the model ({' or '.join(map(str, quantize_choices))}, Default is None)")
 
     def add_lora_arguments(self) -> None:
         self.supports_lora = True

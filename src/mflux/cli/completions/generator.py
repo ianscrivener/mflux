@@ -184,7 +184,7 @@ class CompletionGenerator:
 
         elif command == "mflux-generate-z-image-turbo":
             parser.add_general_arguments()
-            parser.add_model_arguments(require_model_arg=False)
+            parser.add_model_arguments(require_model_arg=False, allow_nvfp4=True)
             parser.add_lora_arguments()
             parser.add_image_generator_arguments(supports_metadata_config=True)
             parser.add_image_to_image_arguments()
@@ -233,7 +233,7 @@ class CompletionGenerator:
             parser.add_output_arguments()
 
         elif command == "mflux-save":
-            parser.add_model_arguments(path_type="save", require_model_arg=True)
+            parser.add_model_arguments(path_type="save", require_model_arg=True, allow_nvfp4=True)
 
         elif command == "mflux-save-depth":
             parser.add_save_depth_arguments()

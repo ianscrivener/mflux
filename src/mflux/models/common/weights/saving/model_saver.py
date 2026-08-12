@@ -19,7 +19,7 @@ class ModelSaver:
     @staticmethod
     def save_model(
         model: Any,
-        bits: int,
+        bits: int | str | None,
         base_path: str,
         weight_definition: "WeightDefinitionType",
     ) -> None:
@@ -32,13 +32,14 @@ class ModelSaver:
                     ModelSaver._save_tokenizer(base_path, tokenizer_wrapper.tokenizer, t.hf_subdir)
 
         # Save model components with progress bar
-        components = [(c.model_attr or c.name, c.hf_subdir) for c in weight_definition.get_components()]
-        for attr_name, subdir in tqdm(components, desc="Saving components", unit="component"):
+        components = [(c, c.model_attr or c.name, c.hf_subdir) for c in weight_definition.get_components()]
+        for definition, attr_name, subdir in tqdm(components, desc="Saving components", unit="component"):
             component = getattr(model, attr_name, None)
             if component is not None:
                 # Bake and strip any LoRA wrappers to avoid duplicating shared weights
                 LoRASaver.bake_and_strip_lora(component)
-                ModelSaver._save_weights(base_path, bits, component, subdir)
+            quantization_level = None if bits in definition.skip_quantization_modes else bits
+            ModelSaver._save_weights(base_path, quantization_level, component, subdir)
 
     @staticmethod
     def _save_tokenizer(base_path: str, tokenizer: PreTrainedTokenizer, subdir: str) -> None:
@@ -47,9 +48,12 @@ class ModelSaver:
         tokenizer.save_pretrained(path)
 
     @staticmethod
-    def _save_weights(base_path: str, bits: int, model: nn.Module, subdir: str) -> None:
+    def _save_weights(base_path: str, bits: int | str | None, model: nn.Module, subdir: str) -> None:
         path = Path(base_path) / subdir
         path.mkdir(parents=True, exist_ok=True)
+        for stale_file in [*path.glob("*.safetensors"), path / "model.safetensors.index.json"]:
+            if stale_file.exists():
+                stale_file.unlink()
         weights = dict(tree_flatten(model.parameters()))
         shards = ModelSaver._split_weights(weights)
 

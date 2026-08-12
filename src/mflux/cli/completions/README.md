@@ -24,7 +24,7 @@ This module provides ZSH shell completion support for all mflux CLI commands.
 - **Auto-completion for all 24 mflux commands**: Generate, train, save, upscale, and more
 - **Smart completions**: 
   - Model names (dev, schnell, dev-fill, or HuggingFace repos)
-  - Quantization levels (3, 4, 5, 6, 8)
+   - Quantization levels (3, 4, 5, 6, 8, plus NVFP4 for Z-Image Turbo)
   - LoRA styles (storyboard, portrait, etc.)
   - File paths with native completion
   - Common percentage values for battery limit

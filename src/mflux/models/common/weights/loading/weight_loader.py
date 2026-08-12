@@ -143,7 +143,7 @@ class WeightLoader:
         return mapped_weights, None, None
 
     @staticmethod
-    def _try_load_mflux_format(path: Path) -> tuple[dict | None, int | None, str | None]:
+    def _try_load_mflux_format(path: Path) -> tuple[dict | None, int | str | None, str | None]:
         if not path.exists():
             return None, None, None
 
@@ -163,9 +163,11 @@ class WeightLoader:
         if quantization_level_str is None and mflux_version is None:
             return None, None, None
 
-        # Convert quantization level from string to int
+        # Convert numeric quantization levels while preserving named MLX modes.
         if quantization_level_str in (None, "None", "null", ""):
             quantization_level = None
+        elif quantization_level_str == "nvfp4":
+            quantization_level = quantization_level_str
         else:
             quantization_level = int(quantization_level_str)
 

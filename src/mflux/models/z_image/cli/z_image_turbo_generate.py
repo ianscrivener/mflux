@@ -12,7 +12,7 @@ def main():
     # 0. Parse command line arguments
     parser = CommandLineParser(description="Generate an image using Z-Image Turbo based on a prompt.")
     parser.add_general_arguments()
-    parser.add_model_arguments(require_model_arg=False)
+    parser.add_model_arguments(require_model_arg=False, allow_nvfp4=True)
     parser.add_lora_arguments()
     parser.add_image_generator_arguments(supports_metadata_config=True, supports_dimension_scale_factor=True)
     parser.add_image_to_image_arguments(required=False)

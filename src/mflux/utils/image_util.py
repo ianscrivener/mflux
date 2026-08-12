@@ -40,7 +40,7 @@ class ImageUtil:
         config: Config,
         seed: int,
         prompt: str,
-        quantization: int,
+        quantization: int | str | None,
         generation_time: float,
         lora_paths: list[str] | None = None,
         lora_scales: list[float] | None = None,
