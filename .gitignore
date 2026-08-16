@@ -30,3 +30,5 @@ build/
 .fls
 .aux
 .log
+.claude
+CLAUDE.md
