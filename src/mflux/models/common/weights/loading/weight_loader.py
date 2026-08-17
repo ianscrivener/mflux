@@ -7,7 +7,6 @@ from typing import TYPE_CHECKING
 
 import mlx.core as mx
 import torch
-from huggingface_hub import snapshot_download
 from mlx.utils import tree_unflatten
 from safetensors.torch import load_file as torch_load_file
 
@@ -31,7 +30,14 @@ class WeightLoader:
         repo_id: str,
         file_pattern: str = "*.safetensors",
     ) -> LoadedWeights:
-        root_path = Path(snapshot_download(repo_id=repo_id, allow_patterns=[file_pattern, "config.json"]))
+        # file_pattern is both the download filter and the test PathResolution applies to a
+        # cached snapshot, so it must name safetensors and nothing else. Adding "config.json"
+        # would mark every cached copy of a repo that keeps none at its root incomplete
+        # (FLUX.2-klein-4B, the Lens VAE, keeps its under vae/), and a pattern loose enough to
+        # match a config file would pass a half-downloaded snapshot as complete.
+        root_path = PathResolution.resolve(path=repo_id, patterns=[file_pattern])
+        if root_path is None:
+            raise ValueError(f"No weights location for component '{component.name}': resolved nothing from {repo_id!r}.")  # fmt: off
         return WeightLoader.load_single_local(component=component, root_path=root_path)
 
     @staticmethod
