@@ -22,6 +22,55 @@ class ConfigResolution:
 
     @staticmethod
     def resolve(model_name: str | None, base_model: str | None = None) -> "ModelConfig":
+        return ConfigResolution._resolve(model_name=model_name, base_model=base_model)[0]
+
+    @staticmethod
+    def resolve_key(model_name: str | None, base_model: str | None = None) -> str | None:
+        # The canonical AVAILABLE_MODELS key of the entry resolve() built its answer from:
+        # for a built-in name the config itself, for a custom checkpoint the base it was
+        # derived from. Callers that need to know *which model* a name refers to (which
+        # class owns the weights, which defaults apply) ask here instead of pattern-matching
+        # the name themselves, which is how `mflux-save` came to file lens, klein and
+        # seedvr2 checkpoints under Flux1.
+        #
+        # Matched by identity, not by name: several entries share a repo id (the FLUX.1-dev
+        # ControlNets; z-image-turbo and its ControlNet), so a reverse lookup on model_name
+        # picks whichever one sorts first rather than the one that was resolved. None only
+        # if a caller has put a config outside the registry into the resolution path.
+        from mflux.models.common.config.model_config import AVAILABLE_MODELS
+
+        root = ConfigResolution._resolve(model_name=model_name, base_model=base_model)[1]
+        return next((key for key, config in AVAILABLE_MODELS.items() if config is root), None)
+
+    @staticmethod
+    def resolve_restricted(model_name: str | None, registry_key: str, model_path: str | None = None) -> "ModelConfig":
+        # Resolve --model for a CLI hard-wired to run exactly one registry model. Only
+        # builtin registry spellings are judged: parse_args sets model_path exactly when
+        # --model is not a builtin name (a local checkpoint or a HuggingFace repo id),
+        # and those keep the CLI's own config while the weights load from the path, as
+        # they always have — judging a path by name-inference would reject directories
+        # like ~/models/zimage-q8 on the turbo CLI. A builtin name must be an alias of
+        # `registry_key`, so e.g. `mflux-generate-krea2 --model dev` fails loudly
+        # instead of silently running Krea-2-Turbo. Compared by identity rather than
+        # model_name because registry entries can share a repo id (z-image-turbo and its
+        # ControlNet).
+        from mflux.models.common.config.model_config import AVAILABLE_MODELS
+        from mflux.utils.exceptions import ModelConfigError
+
+        expected = AVAILABLE_MODELS[registry_key]
+        if model_name is None or model_path is not None:
+            return expected
+        if ConfigResolution.resolve(model_name=model_name) is not expected:
+            raise ModelConfigError(
+                f"'{model_name}' is not {expected.model_name}; this CLI only accepts the aliases {expected.aliases}."
+            )
+        return expected
+
+    @staticmethod
+    def _resolve(model_name: str | None, base_model: str | None = None) -> tuple["ModelConfig", "ModelConfig"]:
+        # Returns the resolved config and the registry entry it came from. The root is kept
+        # separate because _create_config rewrites identity onto a copy, which leaves the
+        # result indistinguishable from every other config sharing that base.
         from mflux.models.common.config.model_config import AVAILABLE_MODELS, ModelConfig
         from mflux.utils.exceptions import InvalidBaseModel, ModelConfigError
 
@@ -105,7 +154,7 @@ class ConfigResolution:
         return False
 
     @staticmethod
-    def _execute(action: ConfigAction, ctx: dict) -> "ModelConfig":
+    def _execute(action: ConfigAction, ctx: dict) -> tuple["ModelConfig", "ModelConfig"]:
         model_name = ctx["model_name"]
         base_model = ctx["base_model"]
         base_models = ctx["base_models"]
@@ -115,7 +164,7 @@ class ConfigResolution:
         if action == ConfigAction.EXACT_MATCH:
             for base in base_models:
                 if model_name == base.model_name or model_name in base.aliases:
-                    return base
+                    return base, base
             raise ValueError("Exact match check passed but no match found")
 
         if action == ConfigAction.EXPLICIT_BASE:
@@ -127,7 +176,7 @@ class ConfigResolution:
                 (b for b in base_models if base_model == b.model_name or base_model in b.aliases),
                 None,
             )
-            return ConfigResolution._create_config(model_name, default_base)
+            return ConfigResolution._create_config(model_name, default_base), default_base
 
         if action == ConfigAction.INFER_SUBSTRING:
             model_name_lower = model_name.lower()
@@ -138,7 +187,7 @@ class ConfigResolution:
                 raise ModelConfigError(f"Cannot infer base_model from {model_name}")
 
             default_base = sorted(matching_bases, key=lambda x: (-len(x[1]), x[0].priority))[0][0]
-            return ConfigResolution._create_config(model_name, default_base)
+            return ConfigResolution._create_config(model_name, default_base), default_base
 
         if action == ConfigAction.ERROR:
             raise ModelConfigError(f"Cannot infer base_model from {model_name}")

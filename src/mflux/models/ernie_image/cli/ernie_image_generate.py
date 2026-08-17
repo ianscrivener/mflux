@@ -2,7 +2,7 @@ import sys
 
 from mflux.callbacks.callback_manager import CallbackManager
 from mflux.cli.parser.parsers import CommandLineParser, lora_init_kwargs_from_args
-from mflux.models.common.config import ModelConfig
+from mflux.models.common.resolution.config_resolution import ConfigResolution
 from mflux.models.ernie_image.latent_creator import ErnieLatentCreator
 from mflux.models.ernie_image.variants.txt2img.ernie_image import ErnieImage
 from mflux.utils.dimension_resolver import DimensionResolver
@@ -33,8 +33,10 @@ def main():
     if "--scheduler" not in sys.argv:
         args.scheduler = "linear"
 
+    # --model accepts only ernie-image aliases; ernie-image-turbo has its own CLI and
+    # anything else errors instead of being silently run as base ERNIE-Image.
     model = ErnieImage(
-        model_config=ModelConfig.ernie_image(),
+        model_config=ConfigResolution.resolve_restricted(args.model, "ernie-image", model_path=args.model_path),
         quantize=args.quantize,
         model_path=args.model_path,
         **lora_init_kwargs_from_args(args),

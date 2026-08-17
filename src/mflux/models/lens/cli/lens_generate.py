@@ -1,10 +1,10 @@
 from mflux.callbacks.callback_manager import CallbackManager
 from mflux.cli.parser.parsers import CommandLineParser
-from mflux.models.common.config import ModelConfig
+from mflux.models.common.resolution.config_resolution import ConfigResolution
 from mflux.models.flux2.latent_creator.flux2_latent_creator import Flux2LatentCreator
 from mflux.models.lens.variants.txt2img.lens_image import LensImage
 from mflux.utils.dimension_resolver import DimensionResolver
-from mflux.utils.exceptions import ModelConfigError, PromptFileReadError, StopImageGenerationException
+from mflux.utils.exceptions import PromptFileReadError, StopImageGenerationException
 from mflux.utils.prompt_util import PromptUtil
 
 # The model this CLI runs when --model is omitted. The parser needs it too, to key the
@@ -34,21 +34,10 @@ def main():
     args = parser.parse_args()
     CommandLineParser.warn_ignored_options(IGNORED_OPTIONS)
 
-    model_config = ModelConfig.lens_turbo()
-    if args.model is not None:
-        try:
-            model_config = ModelConfig.from_name(args.model)
-        except ModelConfigError:
-            if args.model_path is None:
-                raise
-        if model_config.model_name != ModelConfig.lens_turbo().model_name:
-            raise ModelConfigError(
-                f"'{args.model}' is not a Lens model; this CLI only accepts the lens aliases "
-                f"{ModelConfig.lens_turbo().aliases}."
-            )
-
+    # --model accepts only lens aliases; anything else errors instead of being
+    # silently run as Lens Turbo.
     model = LensImage(
-        model_config=model_config,
+        model_config=ConfigResolution.resolve_restricted(args.model, "lens-turbo", model_path=args.model_path),
         quantize=args.quantize,
         model_path=args.model_path,
     )

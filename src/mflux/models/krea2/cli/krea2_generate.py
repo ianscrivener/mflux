@@ -2,7 +2,7 @@ import warnings
 
 from mflux.callbacks.callback_manager import CallbackManager
 from mflux.cli.parser.parsers import CommandLineParser, lora_init_kwargs_from_args
-from mflux.models.common.config import ModelConfig
+from mflux.models.common.resolution.config_resolution import ConfigResolution
 from mflux.models.krea2.latent_creator import Krea2LatentCreator
 from mflux.models.krea2.variants.txt2img.krea2 import Krea2
 from mflux.utils.dimension_resolver import DimensionResolver
@@ -43,9 +43,10 @@ def main():
     parser = build_parser()
     args = parser.parse_args()
 
-    # 1. Load the model
+    # 1. Load the model (--model accepts only krea-2 aliases; anything else errors so a
+    # foreign name is never silently run as Krea-2-Turbo)
     model = Krea2(
-        model_config=ModelConfig.krea2(),
+        model_config=ConfigResolution.resolve_restricted(args.model, "krea-2", model_path=args.model_path),
         quantize=args.quantize,
         model_path=args.model_path,
         **lora_init_kwargs_from_args(args),
