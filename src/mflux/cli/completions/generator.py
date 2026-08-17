@@ -254,7 +254,6 @@ class CompletionGenerator:
             parser.add_general_arguments()
             parser.add_model_arguments(require_model_arg=False)
             parser.add_lora_arguments()
-            parser.add_lora_arguments()
             parser.add_image_generator_arguments(supports_metadata_config=False, supports_dimension_scale_factor=True)
             parser.add_controlnet_arguments(require_image=True)
             parser.add_output_arguments()

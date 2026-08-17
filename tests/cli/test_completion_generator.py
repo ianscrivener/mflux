@@ -35,6 +35,20 @@ def test_completion_generator_includes_krea2_command():
 
 
 @pytest.mark.fast
+def test_completion_generator_builds_a_parser_for_every_command():
+    # Regression: mflux-upscale-controlnet added its lora arguments twice, so any
+    # invocation of mflux-completions died with `argparse.ArgumentError: conflicting
+    # option string: --lora-style` before writing a single completion. Building each
+    # command's parser is exactly what every mflux-completions code path does first,
+    # so a duplicate-argument conflict on any command fails here.
+    generator = CompletionGenerator()
+
+    for command in generator.commands:
+        parser = generator.create_parser_for_command(command)
+        assert parser is not None, command
+
+
+@pytest.mark.fast
 def test_completion_generator_includes_atomic_lora_and_image_flags():
     generator = CompletionGenerator()
     parser = generator.create_parser_for_command("mflux-generate")
