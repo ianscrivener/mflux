@@ -128,10 +128,33 @@ class TinyCheckpointRoundtrip:
         # ModelSaver reads components as attributes named by the definition
         # (model_attr, falling back to the component name) — same shape as the
         # real model objects whose save_model() delegates to ModelSaver.
+        #
+        # Some component dicts alias one module under two component names (e.g. FIBO
+        # VLM's "visual" is the same object as "decoder".visual, mirroring how
+        # FiboVLMInitializer._apply_weights registers {"decoder": model.decoder,
+        # "visual": model.decoder.visual} for WeightApplier). The real model object
+        # never has a separate top-level `.visual` attribute — only `.decoder` is set
+        # by FiboVLMInitializer._init_models — so ModelSaver's getattr(model, attr,
+        # None) would find nothing for "visual" were FiboVLM ever passed through
+        # ModelSaver.save_model (no production save path exists for it yet). Skip
+        # setting an attribute for any component whose module is already reachable
+        # inside another component's tree, so make_components() can return the alias
+        # for WeightApplier's benefit while save-time attribute exposure still matches
+        # what the real model object actually provides.
+        modules_by_name = {name: module for name, module in components.items()}
+        nested = set()
+        for outer_name, outer_module in modules_by_name.items():
+            reachable = set(id(m) for m in outer_module.modules())
+            for inner_name, inner_module in modules_by_name.items():
+                if inner_name != outer_name and id(inner_module) in reachable:
+                    nested.add(inner_name)
+
         class _ComponentHolder:
             pass
 
         model = _ComponentHolder()
         for component in weight_definition.get_components():
+            if component.name in nested:
+                continue
             setattr(model, component.model_attr or component.name, components[component.name])
         return model
