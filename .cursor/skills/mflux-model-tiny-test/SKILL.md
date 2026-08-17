@@ -29,7 +29,7 @@ Do not trust code quoted in this skill over those files. The pattern landed as a
 
 One file, no `src/` changes:
 
-```
+```text
 tests/model_saving/test_tiny_model_saving_<model>.py
 ```
 
@@ -44,7 +44,7 @@ The whole test is a single call into `TinyCheckpointRoundtrip`. The real work is
 
 ### 1. Read the weight definition — it is the contract
 
-```
+```text
 src/mflux/models/<model>/weights/<model>_weight_definition.py
 ```
 
@@ -90,7 +90,7 @@ The examples carry `Fast twin of tests/model_saving/test_model_saving_<model>.py
 
 ## Verify
 
-```
+```sh
 uv run --no-sync python -m pytest tests/model_saving/test_tiny_model_saving_<model>.py -v
 ```
 
@@ -102,7 +102,7 @@ The test should run in roughly a second. If it takes noticeably longer, or the n
 
 **No.** Verified empirically: MLX raises loudly on a bad dimension rather than silently skipping —
 
-```
+```text
 ValueError: [quantize] The last dimension of the matrix needs to be divisible
 by the quantization group size 64. However the provided matrix has shape (100,100)
 ```
