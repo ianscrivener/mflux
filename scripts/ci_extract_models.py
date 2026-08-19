@@ -10,13 +10,15 @@ commands but not which model each one defaults to, and taxonomy/license/status
 aren't recorded anywhere in-repo. Those fields live in the OVERLAY table below
 and must be updated by hand when a model is added, renamed, or reclassified.
 
-A model key present in AVAILABLE_MODELS but missing from OVERLAY is emitted
-with the overlay fields left as null/empty rather than silently dropped, so a
-newly added mflux model is visible in the diff instead of disappearing.
+A model key present in AVAILABLE_MODELS but missing from OVERLAY fails the
+run rather than publishing null taxonomy fields -- add its OVERLAY row first.
 """
 
 import json
+import os
+import subprocess
 import sys
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -26,6 +28,29 @@ sys.path.insert(0, str(REPO_ROOT / "src"))
 from mflux.models.common.config.model_config import AVAILABLE_MODELS  # noqa: E402
 
 OUTPUT_PATH = REPO_ROOT / ".ci_cache" / "models_mflux.json"
+
+CANONICAL_REPO_URL = "https://github.com/mflux-community/mflux"
+
+
+def _resolve_repo_url() -> str:
+    """The repo this extraction actually ran in, not necessarily canonical upstream."""
+    github_repository = os.environ.get("GITHUB_REPOSITORY")
+    if github_repository:
+        return f"https://github.com/{github_repository}"
+    try:
+        remote = subprocess.run(
+            ["git", "remote", "get-url", "origin"],
+            cwd=REPO_ROOT,
+            capture_output=True,
+            text=True,
+            check=True,
+        ).stdout.strip()
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        return CANONICAL_REPO_URL
+    if remote.startswith("git@github.com:"):
+        return "https://github.com/" + remote.removeprefix("git@github.com:").removesuffix(".git")
+    return remote.removesuffix(".git")
+
 
 STANDARD_QUANTS = ["q3", "q4", "q5", "q6", "q8", "bf16"]
 
@@ -286,14 +311,46 @@ def build_registry() -> dict[str, Any]:
     return dict(sorted(registry.items()))
 
 
+def _value_counts(registry: dict[str, Any], field: str) -> dict[str, int]:
+    counts: dict[str, int] = {}
+    for entry in registry.values():
+        value = entry[field]
+        if value is not None:
+            counts[value] = counts.get(value, 0) + 1
+    return dict(sorted(counts.items()))
+
+
+def build_metadata(registry: dict[str, Any]) -> dict[str, Any]:
+    unique_quants = sorted({q for entry in registry.values() for q in entry.get("quants", [])})
+
+    return {
+        "datetime_extract": datetime.now(UTC).isoformat(),
+        "repo": _resolve_repo_url(),
+        "counts": {
+            "model_count": len(registry),
+            "model_type_count": _value_counts(registry, "model_type"),
+            "model_family_count": _value_counts(registry, "model_family"),
+            "unique_quants": unique_quants,
+        },
+    }
+
+
 def main() -> None:
     registry = build_registry()
     missing_overlay = [k for k in AVAILABLE_MODELS if k not in OVERLAY]
     if missing_overlay:
-        print(f"warning: no OVERLAY entry for: {', '.join(sorted(missing_overlay))}", file=sys.stderr)
+        sys.exit(
+            f"error: no OVERLAY entry for: {', '.join(sorted(missing_overlay))} "
+            "-- add a row to OVERLAY in scripts/ci_extract_models.py before publishing."
+        )
+
+    document = {
+        "metadata": build_metadata(registry),
+        "models": [{key: entry} for key, entry in registry.items()],
+    }
 
     OUTPUT_PATH.parent.mkdir(parents=True, exist_ok=True)
-    OUTPUT_PATH.write_text(json.dumps(registry, indent=2) + "\n")
+    OUTPUT_PATH.write_text(json.dumps(document, indent=2) + "\n")
     print(f"wrote {len(registry)} models to {OUTPUT_PATH}")
 
 
