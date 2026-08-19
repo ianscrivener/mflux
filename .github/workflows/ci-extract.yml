@@ -33,13 +33,10 @@ jobs:
         run: |
           uv sync --all-extras --locked
 
-      # ./.github/actions/just-setup downloads a Linux binary; macos-14 runners
-      # ship just via Homebrew already, so just verify it rather than reinstall.
-      - name: Verify just
-        run: just --version
-
+      # Calls the script directly rather than `just ci-extract`: macos-14 runners
+      # don't ship just, and installing it for one call isn't worth the dependency.
       - name: Extract model registry
-        run: just ci-extract
+        run: uv run --no-sync python scripts/ci_extract_models.py
 
       - name: Resolve HF bucket destination
         id: dest
