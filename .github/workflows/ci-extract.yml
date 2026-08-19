@@ -29,9 +29,11 @@ jobs:
           python-version: "3.13"  # newest fully-supported version
           activate-environment: true
 
+      # --no-dev: the script only needs mflux's runtime deps (it imports
+      # ModelConfig, nothing from the dev group: pytest/ruff/ty/matplotlib).
       - name: Install dependencies
         run: |
-          uv sync --all-extras --locked
+          uv sync --locked --no-dev
 
       # Calls the script directly rather than `just ci-extract`: macos-14 runners
       # don't ship just, and installing it for one call isn't worth the dependency.
