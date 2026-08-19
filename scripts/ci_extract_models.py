@@ -18,7 +18,7 @@ import json
 import os
 import subprocess
 import sys
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -324,7 +324,7 @@ def build_metadata(registry: dict[str, Any]) -> dict[str, Any]:
     unique_quants = sorted({q for entry in registry.values() for q in entry.get("quants", [])})
 
     return {
-        "datetime_extract": datetime.now(UTC).isoformat(),
+        "datetime_extract": datetime.now(timezone.utc).isoformat(),
         "repo": _resolve_repo_url(),
         "counts": {
             "model_count": len(registry),
