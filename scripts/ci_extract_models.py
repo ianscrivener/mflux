@@ -276,6 +276,12 @@ def build_registry() -> dict[str, Any]:
             entry["quants"] = quants
         registry[key] = entry
 
+    collisions = registry.keys() & EXTRA_ENTRIES.keys()
+    if collisions:
+        raise ValueError(
+            f"EXTRA_ENTRIES key(s) {sorted(collisions)} already present in AVAILABLE_MODELS; "
+            "remove the now-redundant EXTRA_ENTRIES entry."
+        )
     registry.update(EXTRA_ENTRIES)
     return dict(sorted(registry.items()))
 
