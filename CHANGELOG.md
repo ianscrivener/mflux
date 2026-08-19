@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### 🔒 Security
+
+- **Locked dependencies updated beyond all reported vulnerable ranges**: raises the minimum supported versions of Pillow, Requests, PyTorch, Transformers, and urllib3, refreshes affected transitive dependencies, and removes the now-unused cryptography dependency from the lock. This addresses 35 Dependabot findings: 19 high, 12 medium, and 4 low. (#655)
+
 ### 🐛 Bug Fixes
 
 - **Shell completions cover every installed command**: the generator's hand-maintained list had drifted six commands behind pyproject (`mflux-generate-boogu`, `mflux-generate-lens`, both `mflux-generate-ernie-image` commands, `mflux-generate-ideogram4`, `mflux-capabilities` never completed). Commands are now discovered from the installed console scripts and, where a CLI exposes `build_parser()`, completions are generated from the CLI's real parser instead of a hand-copied recipe of it. (#578, #651)
