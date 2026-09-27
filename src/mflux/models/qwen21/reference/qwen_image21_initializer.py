@@ -63,11 +63,20 @@ class QwenImage21Initializer:
             # each dense source is freed once its quantized result exists, so the peak is the
             # quantized component plus one chunk rather than dense and quantized side by side.
             del weights, supplied
-            parameters = [value for _, value in tree_flatten(module.parameters())]
-            for start in range(0, len(parameters), 8):
-                mx.eval(parameters[start : start + 8])
-            del parameters
+            QwenImage21Initializer._materialize(component.name, module)
             mx.clear_cache()
+
+    @staticmethod
+    def _materialize(name: str, module) -> None:
+        # The text encoder's lm_head (~1.2 GB bf16) only serves auto-mask, prompt rewriting
+        # and verification; leaving it lazy defers the read (and any quantization) to first use.
+        parameters = [
+            value
+            for key, value in tree_flatten(module.parameters())
+            if not (name == "text_encoder" and key.startswith("lm_head."))
+        ]
+        for start in range(0, len(parameters), 8):
+            mx.eval(parameters[start : start + 8])
 
     @staticmethod
     def _validate_weights(name: str, module, supplied: dict[str, mx.array]) -> None:

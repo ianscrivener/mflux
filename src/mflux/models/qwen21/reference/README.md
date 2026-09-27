@@ -83,7 +83,7 @@ mflux-generate-qwen-2.1-edit \
   --output edited.png
 ```
 
-Auto-mask, prompt rewriting and verification decode greedily with the text encoder's own untied `lm_head`, so they need no extra download. Checkpoints saved before this support existed lack that head; they still generate, but these three options raise an error with them.
+Auto-mask, prompt rewriting and verification decode greedily with the text encoder's own untied `lm_head`, so they need no extra download. The head is read from disk only the first time one of them runs, so plain edits and text-to-image never hold it in memory. Checkpoints saved before this support existed lack that head; they still generate, but these three options raise an error with them.
 
 ## Transparent output
 
