@@ -12,17 +12,15 @@ class DinoVisionTransformer(nn.Module):
         num_heads: int = 16,
         mlp_hidden_dim: int = 4096,
         num_blocks: int = 24,
-        img_size: int = 384,
-        patch_size: int = 16,
         hook_block_ids: tuple[int, int] = (5, 11),
     ):
         super().__init__()
         self.embed_dim = embed_dim
         self.hook_block_ids = hook_block_ids
-        num_patches = (img_size // patch_size) ** 2
         self.cls_token = mx.random.normal(shape=(1, 1, embed_dim))
-        self.pos_embed = mx.random.normal(shape=(1, num_patches + 1, embed_dim))
-        self.patch_embed = PatchEmbed(embed_dim=embed_dim, patch_size=patch_size)
+        # 577 = a 24x24 patch grid plus the cls token. DepthProUtil.split always gives 384 px patches.
+        self.pos_embed = mx.random.normal(shape=(1, 577, embed_dim))
+        self.patch_embed = PatchEmbed(embed_dim=embed_dim)
         self.blocks = [TransformerBlock(dim=embed_dim, num_heads=num_heads, mlp_hidden_dim=mlp_hidden_dim) for i in range(num_blocks)]  # fmt: off
         self.norm = nn.LayerNorm(dims=embed_dim, eps=1e-6, bias=True)
 

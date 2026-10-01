@@ -15,21 +15,16 @@ class DepthProEncoder(nn.Module):
         num_heads: int = 16,
         mlp_hidden_dim: int = 4096,
         num_blocks: int = 24,
-        img_size: int = 384,
-        patch_size: int = 16,
         hook_block_ids: tuple[int, int] = (5, 11),
         encoder_feature_dims: tuple[int, int, int, int] = (256, 512, 1024, 1024),
         decoder_features: int = 256,
     ):
         super().__init__()
-        self.grid_size = img_size // patch_size
         vit_kwargs = dict(
             embed_dim=embed_dim,
             num_heads=num_heads,
             mlp_hidden_dim=mlp_hidden_dim,
             num_blocks=num_blocks,
-            img_size=img_size,
-            patch_size=patch_size,
             hook_block_ids=hook_block_ids,
         )
         self.patch_encoder = DinoVisionTransformer(**vit_kwargs)
@@ -51,15 +46,9 @@ class DepthProEncoder(nn.Module):
         # 1: Run the backbone patch encoder model
         x_pyramid_patches = mx.concatenate((x0, x1, x2), axis=0)
         x_pyramid_encodings, backbone_highres_hook0, backbone_highres_hook1 = self.patch_encoder(x_pyramid_patches)
-        x_pyramid_encodings = DepthProEncoder._reshape_feature(
-            x_pyramid_encodings, width=self.grid_size, height=self.grid_size
-        )
-        x_latent0_encodings = DepthProEncoder._reshape_feature(
-            backbone_highres_hook0, width=self.grid_size, height=self.grid_size
-        )
-        x_latent1_encodings = DepthProEncoder._reshape_feature(
-            backbone_highres_hook1, width=self.grid_size, height=self.grid_size
-        )
+        x_pyramid_encodings = DepthProEncoder._reshape_feature(x_pyramid_encodings, width=24, height=24)
+        x_latent0_encodings = DepthProEncoder._reshape_feature(backbone_highres_hook0, width=24, height=24)
+        x_latent1_encodings = DepthProEncoder._reshape_feature(backbone_highres_hook1, width=24, height=24)
 
         # Calculate indices for splitting
         x0_encodings = x_pyramid_encodings[: len(x0)]
@@ -82,9 +71,7 @@ class DepthProEncoder(nn.Module):
 
         # 4. Apply the image encoder model.
         x_global_features, _, _ = self.image_encoder(x2)
-        x_global_features = DepthProEncoder._reshape_feature(
-            embeddings=x_global_features, width=self.grid_size, height=self.grid_size
-        )
+        x_global_features = DepthProEncoder._reshape_feature(embeddings=x_global_features, width=24, height=24)
         x_global_features = DepthProUtil.apply_conv(x_global_features, self.upsample_lowres)
         x_global_features = mx.concatenate((x2_features, x_global_features), axis=1)
         x_global_features = DepthProUtil.apply_conv(x_global_features, self.fuse_lowres)
