@@ -49,5 +49,7 @@ class LoRALinear(nn.Module):
 
     def __call__(self, x):
         base_out = self.linear(x)
-        lora_out = mx.matmul(mx.matmul(x, self.lora_A), self.lora_B)
+        # Cast the float32 master factors to the activation dtype. Without this cast,
+        # MLX promotes the output to float32 and every later block runs in float32.
+        lora_out = mx.matmul(mx.matmul(x, self.lora_A.astype(x.dtype)), self.lora_B.astype(x.dtype))
         return base_out + self.scale * lora_out
