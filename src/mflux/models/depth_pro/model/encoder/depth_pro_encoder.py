@@ -29,7 +29,7 @@ class DepthProEncoder(nn.Module):
         )
         self.patch_encoder = DinoVisionTransformer(**vit_kwargs)
         self.image_encoder = DinoVisionTransformer(**vit_kwargs)
-        self.upsample_latent0 = UpSampleBlock(dim_in=embed_dim, dim_int=decoder_features, dim_out=encoder_feature_dims[0], upsample_layers=3)  # fmt: off
+        self.upsample_latent0 = UpSampleBlock(dim_in=embed_dim, dim_int=decoder_features, dim_out=decoder_features, upsample_layers=3)  # fmt: off
         self.upsample_latent1 = UpSampleBlock(dim_in=embed_dim, dim_out=encoder_feature_dims[0], upsample_layers=2)
         self.upsample0 = UpSampleBlock(dim_in=embed_dim, dim_out=encoder_feature_dims[1], upsample_layers=1)
         self.upsample1 = UpSampleBlock(dim_in=embed_dim, dim_out=encoder_feature_dims[2], upsample_layers=1)

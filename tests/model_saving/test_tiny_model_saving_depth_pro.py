@@ -45,8 +45,9 @@ class TestTinyDepthProModelSaving:
     @staticmethod
     def _tiny_components():
         # Every Linear input is a multiple of 64 (the quantization group size). The predicate
-        # skips Conv2d layers. encoder_feature_dims[0] must equal decoder_features, because the
-        # decoder passes the first level through unchanged. Two blocks, so the hooks are 0 and 1.
+        # skips Conv2d layers. encoder_feature_dims[0] differs from decoder_features, so the forward
+        # pass checks that the encoder and decoder agree on each level's width. Two blocks, so the
+        # hooks are 0 and 1.
         return {
             "depth_pro": DepthProModel(
                 embed_dim=64,
@@ -54,7 +55,7 @@ class TestTinyDepthProModelSaving:
                 mlp_hidden_dim=128,
                 num_blocks=2,
                 hook_block_ids=(0, 1),
-                encoder_feature_dims=(64, 64, 64, 64),
+                encoder_feature_dims=(128, 64, 64, 64),
                 decoder_features=64,
             ),
         }

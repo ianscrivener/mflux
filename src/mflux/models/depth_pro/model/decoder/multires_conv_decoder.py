@@ -12,7 +12,7 @@ class MultiresConvDecoder(nn.Module):
         decoder_features: int = 256,
     ):
         super().__init__()
-        # The decoder passes the first level through unchanged, so encoder_feature_dims[0] must equal decoder_features.
+        # Level 0 is upsample_latent0, which the encoder already projects to decoder_features.
         self.convs = [nn.Identity()] + [
             nn.Conv2d(in_channels=dim, out_channels=decoder_features, kernel_size=3, stride=1, padding=1, bias=False)
             for dim in encoder_feature_dims
