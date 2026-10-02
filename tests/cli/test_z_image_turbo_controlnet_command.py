@@ -53,7 +53,7 @@ def full_argv(tmp_path, control_png, lora_file):
         "--lora", str(lora_file), "0.5",
         "-q", "8",
         "--float32",
-        "--metadata",
+        "--make-conf",
         "--output", str(tmp_path / "out.png"),
     ]  # fmt: skip
 
