@@ -2,12 +2,12 @@
 
 ## What a scheduler does
 
-A scheduler controls the denoise loop. It gives the loop a list of noise levels (sigmas). It also does the update at each step.
+A scheduler gives the denoise loop a list of noise levels (sigmas). Most schedulers also do the update at each step. A scheduler can instead leave the update to a separate sampler. `Krea2FlowScheduler` does this. Its `step()` raises `NotImplementedError`.
 
 Every scheduler inherits from `BaseScheduler` in `src/mflux/models/common/schedulers/base_scheduler.py`. The class needs two members:
 
 - `sigmas` is a property. It returns the noise levels as an `mx.array`, with a final `0`.
-- `step(noise, timestep, latents, **kwargs)` returns the new latents.
+- `step(noise, timestep, latents, **kwargs)` returns the new latents. A scheduler that delegates the update to a sampler can raise `NotImplementedError`.
 
 `scale_model_input(latents, t)` is optional. It returns the latents unchanged by default.
 
@@ -42,9 +42,10 @@ The common schedulers register with the names `linear`, `flow_match_euler_discre
 | --- | --- | --- |
 | FLUX.1 (all commands) | any registered name or external class | `linear` |
 | Qwen Image and Qwen Image Edit | any registered name or external class | `linear` |
-| Qwen Image 2.1 | `linear`, `viggle_turbo` (the edit command allows only these two) | `linear` |
-| Z-Image (base) | any registered name or external class | `flow_match_euler_discrete` when the model uses guidance, otherwise `linear` |
-| Z-Image Turbo and Turbo ControlNet | any registered name or external class | `linear` |
+| Qwen Image 2.1 (generate) | any registered name or external class | `linear` |
+| Qwen Image 2.1 (edit) | `linear`, `viggle_turbo` only | `linear` |
+| Z-Image (base command, including `--model z-image-turbo`) | any registered name or external class | `flow_match_euler_discrete` |
+| Z-Image Turbo and Turbo ControlNet (dedicated commands) | any registered name or external class | `linear` |
 | ERNIE-Image and ERNIE-Image Turbo | any registered name or external class | `linear` |
 | Krea 2 | `er_sde`, `euler` | `er_sde` (`linear` maps to `er_sde`) |
 
@@ -56,9 +57,9 @@ The user cannot change the scheduler for these models.
 | --- | --- |
 | FLUX.2 and FLUX.2 Edit | `flow_match_euler_discrete` (the CLI sets it). |
 | FIBO and FIBO Edit | `flow_match_euler_discrete` (the CLI sets it). |
-| Ideogram 4 | `linear`. Use `--preset` to select the step count and noise schedule. |
+| Ideogram 4 | `Config` names `linear`, but the denoise loop does not use it. `Ideogram4Scheduler.make_timesteps` builds the timesteps. Use `--preset` to select the step count and noise schedule. |
 | SeedVR2 | `seedvr2_euler` |
-| Lens, Ming-Image, Boogu Image | The model uses the schedule it was trained on. The CLI accepts `--scheduler`, warns, and ignores it (Lens and Ming list it in `IGNORED_OPTIONS`). |
+| Lens, Ming-Image, Boogu Image | The model uses the schedule it was trained on. The CLI accepts `--scheduler` and ignores it. Lens and Ming warn (they list it in `IGNORED_OPTIONS`). Boogu does not warn. |
 
 Python callers can pass `scheduler=` to the FLUX.2 and FIBO model classes. The CLI does not.
 
@@ -69,7 +70,7 @@ Python callers can pass `scheduler=` to the FLUX.2 and FIBO model classes. The C
 3. Add the `sigmas` property. Return `num_steps + 1` values. The last value is `0`.
 4. Add `step()`. For a plain Euler update, copy `LinearScheduler.step`:
    `latents + noise * (sigmas[t + 1] - sigmas[t])`.
-5. Add a `timesteps` property if the model reads it. FLUX.2 does.
+5. Add a `timesteps` property if the model reads it. FLUX.2 and Qwen Image Edit do.
 6. Optional: add `set_image_seq_len(n)`. `Config` calls it when the model needs a sigma shift.
 7. Optional: add a static `check_args(parser, args)`. The CLI can call it before the model loads, to fail fast on bad flags. `ViggleTurboScheduler` shows how.
 8. Register the class. Choose one way:

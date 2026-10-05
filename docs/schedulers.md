@@ -18,15 +18,16 @@ mflux-generate-krea2 --prompt "a chrome teapot" --steps 8 --scheduler euler -q 8
 | --- | --- | --- |
 | FLUX.1 | `linear`, `flow_match_euler_discrete` | `linear` |
 | Qwen Image, Qwen Image Edit | `linear`, `flow_match_euler_discrete` | `linear` |
-| Qwen Image 2.1 | `linear`, `viggle_turbo` | `linear` |
-| Z-Image (base) | `linear`, `flow_match_euler_discrete` | `flow_match_euler_discrete` |
-| Z-Image Turbo | `linear`, `flow_match_euler_discrete` | `linear` |
+| Qwen Image 2.1 (generate) | `linear`, `flow_match_euler_discrete`, `viggle_turbo` | `linear` |
+| Qwen Image 2.1 (edit) | `linear`, `viggle_turbo` only | `linear` |
+| Z-Image (base command, including `--model z-image-turbo`) | `linear`, `flow_match_euler_discrete` | `flow_match_euler_discrete` |
+| Z-Image Turbo (dedicated command) | `linear`, `flow_match_euler_discrete` | `linear` |
 | ERNIE-Image | `linear`, `flow_match_euler_discrete` | `linear` |
 | Krea 2 | `er_sde`, `euler` | `er_sde` |
 
-Other models set the scheduler for you: FLUX.2, FIBO, Ideogram 4, SeedVR2, Lens, Ming-Image and Boogu Image. For Lens, Ming-Image and Boogu Image, the command shows a warning if you pass `--scheduler`. It then ignores the flag. FLUX.2 and FIBO commands also use their own scheduler.
+Other models set the scheduler for you: FLUX.2, FIBO, Ideogram 4, SeedVR2, Lens, Ming-Image and Boogu Image. Lens, Ming-Image and Boogu Image ignore `--scheduler`. Lens and Ming-Image show a warning. Boogu Image shows no warning. FLUX.2 and FIBO commands also use their own scheduler.
 
-Ideogram 4 has `--preset`. It selects the step count and noise schedule.
+Ideogram 4 has `--preset`. It selects the step count and noise schedule. Ideogram 4 does not use the `linear` scheduler.
 
 ## What the values mean
 
@@ -48,5 +49,5 @@ The package must be installed in the same Python environment as MFLUX.
 ## Errors
 
 - `The scheduler 'x' is not implemented by mflux.`: the name is wrong. Check the table above.
-- `viggle_turbo ... num_inference_steps`: set `--steps 6`.
+- `viggle_turbo ... --steps`: the step count is not 6. Set `--steps 6`.
 - The help text for `--scheduler` says "linear only for now". That text is out of date.
