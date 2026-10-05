@@ -23,7 +23,7 @@ repos:
         # keeps it from rewriting uv.lock / .venv with the hook's bundled uv.
         # --all-extras: pytest etc. live in the dev extra, which isolated mode
         # would otherwise omit (making tests/ imports unresolvable).
-        args: [--isolated, --no-python-downloads, --all-extras]
+        args: [--isolated, --no-python-downloads, --all-extras, --group, issue-triage]
   - repo: local
     hooks:
       # A pyproject.toml (or uv.lock) change must leave the lockfile consistent:

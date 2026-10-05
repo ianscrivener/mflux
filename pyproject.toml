@@ -49,10 +49,9 @@ dependencies = [
     # Already present through huggingface-hub; declared so mflux-capabilities --format yaml
     # does not depend on a transitive dependency staying where it is.
     "pyyaml>=6.0,<7.0",
-
     # Security floor for anyio, which is used transitively by httpx through huggingface-hub;
     # mflux does not import it directly
-    "anyio>=4.14.2,<5.0"
+    "anyio>=4.14.2,<5.0",
 ]
 classifiers = [
     "Intended Audience :: Developers",
@@ -81,6 +80,7 @@ dev = [
     "mlx==0.32.0; sys_platform=='darwin'",
     "mlx[cuda13]==0.32.2; sys_platform=='linux'",
 ]
+issue-triage = ["onnxruntime==1.24.3"]
 
 [tool.uv.dependency-groups]
 # Matches the repo's dev baseline (justfile python_version, CI dev jobs).
@@ -137,6 +137,7 @@ line-length = 120
 indent-width = 4
 target-version = "py310"
 respect-gitignore = true
+exclude = ["scripts/issue_triage/issues.jsonl"]
 
 [tool.ruff.lint]
 select = ["BLE", "E4", "E7", "E9", "F", "I", "ICN", "LOG", "PERF", "W"]
