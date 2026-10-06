@@ -21,6 +21,7 @@ Write the PR body for the current branch. The developer must approve the body be
    - If the PR is open: `gh pr view <n> --json title,body,closingIssuesReferences` and `gh pr checks <n>`.
 2. Copy `.github/pull_request_template.md` to `tmp-PR-content.md`. If `tmp-PR-content.md` exists, ask the developer before you replace it.
    - Add this heading as the first line: `# Draft PR Content`.
+   - If the PR is open, `gh pr edit --body-file` replaces the existing body. Copy each existing section and link that the template does not have into `tmp-PR-content.md`. Get them from the `body` field of step 1. If you do not copy them, ask the developer to confirm before you discard them.
 3. Write the `What` section. Obey `pr-what-prompt.md` in this folder. Use the diff from step 1 if the PR is not open. Add `Fixes #<n>` for each linked issue.
 4. Write the release note. Obey `release-note-prompt.md` in this folder.
    - Put the note on the lines below the opening fence. Do not put text on the fence line.
