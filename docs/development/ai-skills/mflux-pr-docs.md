@@ -1,14 +1,13 @@
 # `mflux-pr-docs` AI Agent Skill
 
 
-***Making PRs easier... an AI skill that works across Claude Code, Cursor, and GitHub Co-Pilot.*** 
+***An AI skill that helps you write the PR body. It works in Claude Code, Cursor and GitHub Copilot.***
 
 
 ### Goals
- 1. Guide AI to write copy that is more concise and easy to read (using Simple Technical English \*)
- 2. AI autofill "What" - see pr-what-prompt.md
- 3. AI autofill release note code block
- 4. AI autofill release note 
+ 1. The AI writes short, clear text in Simplified Technical English \*.
+ 2. The AI fills the `What` section. See `pr-what-prompt.md`.
+ 3. The AI fills the `release-note` block. See `release-note-prompt.md`.
 
 
 ### Process:
@@ -19,4 +18,4 @@
 1. Show `tmp-PR-content.md` to the developer for approval or edits. Only after approval does it run `gh pr create --body-file tmp-PR-content.md`, or `gh pr edit` if the PR already exists.
 
 
-\* Simple Technical English Skill - [asd-ste100-skill](https://github.com/danyuchn/asd-ste100-skill)
+\* Simplified Technical English skill - [asd-ste100-skill](https://github.com/danyuchn/asd-ste100-skill)

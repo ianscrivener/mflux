@@ -48,9 +48,8 @@ Write the PR body for the current branch. The developer must approve the body be
 10. Read `tmp-PR-content.md` again after the developer approves it. The developer can edit the file before approval. Do step 8 again.
 11. Send the PR content to GitHub:
     - Delete the `# Draft PR Content` heading line from `tmp-PR-content.md`. GitHub must not get this heading.
-    - If the PR is not open: `gh pr create --body-file tmp-PR-content.md`.
+    - If the PR is not open, push the branch first. Ask for permission before you push. Obey the `mflux-pr` skill. Then run `gh pr create --body-file tmp-PR-content.md`.
     - If the PR is open: `gh pr edit <n> --body-file tmp-PR-content.md`.
-    - Ask for permission before you push the branch. Obey the `mflux-pr` skill.
 12. Delete `tmp-PR-content.md`.
 
 ## Rules

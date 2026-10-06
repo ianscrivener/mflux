@@ -39,14 +39,13 @@ Examine each type of benefit in this list. Write a benefit only if the diff show
 | Maintenance | Code that is easier to read, change, or reuse. |
 | New model support | Code that adds support for a new model. |
 
-
 ## 3. Find the beneficiaries
 
 Name each group of people that gets a benefit. Use these groups:
 
 - 'CLI users'
 - 'Python developers' who import the package
-- 'Downstream Developers' of UIs or other apps that use the package
+- 'Downstream developers' of UIs or other apps that use the package
 - 'Contributors' and maintainers of the project
 - 'Release managers'
 

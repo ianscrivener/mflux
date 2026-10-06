@@ -5,7 +5,7 @@
 ## Checklist (definition of done)
 
 - [ ] **Tests added/updated run in CI by default**
-Ran `just test`.
+Run `just test`.
 Only mark `@pytest.mark.slow` or `@pytest.mark.high_memory_requirement` when a test exceeds CI's time or memory budget (typically weight downloads / image generation).<br><br>
 - [ ] **`ruff check` and `ruff format` are clean**
 `uv run ruff` uses the version pinned in the dev dependencies of `pyproject.toml`, which is the single source of truth for pre-commit and CI; `pre-commit run -a` covers it locally.<br><br>
@@ -15,9 +15,8 @@ Every PR gets a note. Do not write `none`.<br><br>
 README examples/table rows are part of the API contract (see `.cursor/rules/RULE.md`).<br><br>
 - [ ] **New model: shared config wiring**
 aliases, default steps, mflux-save dispatch, capabilities, completions, thin CLI entrypoint and `src/mflux/models/<name>/README.md`.<br><br>
-- [ ] **New/changed CLI: ignored/rejected options declared**(`IGNORED_OPTIONS`/`REJECTED_OPTIONS`) and `warn_ignored_options` actually called in `main()``mflux-capabilities` must stay truthful.
-
-
+- [ ] **New/changed CLI: ignored/rejected options declared**
+`IGNORED_OPTIONS`/`REJECTED_OPTIONS` declared and `warn_ignored_options` actually called in `main()`, so `mflux-capabilities` stays truthful.
 
 ## Release note
 

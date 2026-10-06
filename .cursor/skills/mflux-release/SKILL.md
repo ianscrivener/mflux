@@ -24,7 +24,7 @@ Releases are prepared in-repo; tagging/publishing is handled by GitHub Actions
 
 - Bump version in `pyproject.toml`
 - Update lockfile: `uv lock`
-- Release-note block of the prep PR itself: `none`
+- Release-note block of the prep PR itself: a note for contributors, for example `Prepare the <version> release.` Give the PR the `chore` label.
 - Prefer one commit named `release: prepare <version>`
 - Sanity checks (optional unless requested): `just test-fast`, `just build`
 - Do not tag releases locally unless explicitly requested (normally handled by CI)

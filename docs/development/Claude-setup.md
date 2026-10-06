@@ -30,15 +30,25 @@ Add personal files that are not Claude files to `.git/info/exclude`. Git reads t
 
 ### `.gitignore` setup
 
+Git reads `#` as a comment only at the start of a line. Thus each comment is on its own line.
+
 ```
-.claude/*                    # Ignore the whole .claude directory by default. 
-!.claude/skills/             # un-ignore SKILLS
-!.claude/settings.json       # un-ignore settings
-.claude/settings.local.json  # ignore personal settings
-.claude/skills/gitnexus-*/   # ignore the GitNexus skills that `gitnexus analyze` makes
-CLAUDE.md                    # ignore CLAUDE.md (use AGENTS.md for shared rules)
-CLAUDE.local.md              # ignore personal CLAUDE.md agent instructions
-tmp-PR-content.md            # ignore the PR content file that /mflux-pr-docs makes
+# Ignore the whole .claude directory by default.
+.claude/*
+# Share the skills.
+!.claude/skills/
+# Share the settings.
+!.claude/settings.json
+# Ignore the personal settings.
+.claude/settings.local.json
+# Ignore the GitNexus skills that `gitnexus analyze` makes.
+.claude/skills/gitnexus-*/
+# Ignore CLAUDE.md. Use AGENTS.md for shared rules.
+CLAUDE.md
+# Ignore the personal agent instructions.
+CLAUDE.local.md
+# Ignore the PR content file that /mflux-pr-docs makes.
+tmp-PR-content.md
 ```
 
 ### Sources
