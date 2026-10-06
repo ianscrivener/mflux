@@ -10,7 +10,7 @@ Releases are prepared in-repo; tagging/publishing is handled by GitHub Actions
 ## How notes work now (#685)
 
 - Every PR carries a fenced ` ```release-note ` block in its body (CI enforces it;
-  `none` opts a PR out). That block is the only source of release notes.
+  every PR gets a note, and contributors do not write `none`). That block is the only source of release notes.
 - On dispatch, the ungated `draft-notes` job harvests the blocks for every PR whose
   squash commit is in `previous-tag..HEAD` and fills a DRAFT GitHub release, grouped
   by label.
