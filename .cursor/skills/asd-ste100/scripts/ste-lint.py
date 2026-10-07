@@ -10,10 +10,12 @@ Usage:
     echo "text" | ste-lint.py [--json]
     ste-lint.py --baseline 5 FILE      # pass unless hard violations exceed 5
     ste-lint.py --disable passive-voice,present-perfect FILE
+    ste-lint.py --strict FILE          # synonym rotation fails the run
     ste-lint.py --selftest
 
 Exit 1 when hard ("advisory-free") violations exceed the baseline (default 0).
-Advisory findings (passive voice, compound tenses) never fail the run.
+Advisory findings (passive voice, compound tenses, and synonym rotation
+unless --strict) never fail the run.
 """
 import json
 import re
@@ -68,6 +70,7 @@ LIST_ITEM_START = re.compile(
     r"^(?P<indent> {0,3})(?P<marker>[-*+]|[0-9]+[.)])(?P<gap> +)(?P<body>.*)$"
 )
 CONJUNCTION_END = re.compile(r"\b(?:and|or)\s*$", re.I)
+SENTENCE_END = re.compile(r"[.!?][\"')\]]*$")
 TABLE_SEPARATOR_CELL = re.compile(r"^:?-{3,}:?$")
 
 
@@ -228,7 +231,7 @@ def _dangling_conjunction_findings(text, filename):
     return findings
 
 
-def lint(text, filename="<stdin>"):
+def lint(text, filename="<stdin>", strict=False):
     findings = []
     words_total = 0
     in_fence = False
@@ -236,16 +239,43 @@ def lint(text, filename="<stdin>"):
     table_cells = _markdown_table_cells(lines)
     # first occurrence of each synonym-group member: (group_idx, base) -> (line, col, match)
     seen_synonyms = {}
+    pending = []  # prose tokens (word, line, col) of the current paragraph
+
+    def flush():
+        # Count sentences across Markdown line wraps; report at the first word.
+        sentence = []
+        for token in pending + [None]:
+            if token is not None:
+                sentence.append(token)
+                if not SENTENCE_END.search(token[0]):
+                    continue
+            if len(sentence) > MAX_WORDS:
+                n = len(sentence)
+                findings.append({"file": filename, "line": sentence[0][1],
+                                 "col": sentence[0][2],
+                                 "rule": "long-sentence", "level": "advisory-free",
+                                 "match": f"{n} words",
+                                 "message": f"Sentence has {n} words (cap {MAX_WORDS}). Split it."})
+            sentence = []
+        pending.clear()
+
     for lineno, raw_line in enumerate(lines, 1):
         if CODE_FENCE.match(raw_line.strip()):
             in_fence = not in_fence
+            flush()
             continue
         if in_fence:
             continue
+        if not raw_line.strip() or LIST_ITEM_START.match(raw_line):
+            flush()
+        in_table = (lineno - 1) in table_cells
         segments = table_cells.get(lineno - 1, [(raw_line, 0)])
         for segment, source_column in segments:
-            line = INLINE_CODE.sub("", segment)
-            words_total += len(line.split())
+            # Mask code spans with spaces so source columns stay correct.
+            line = INLINE_CODE.sub(lambda match: " " * len(match.group(0)), segment)
+            tokens = [(m.group(0), lineno, source_column + m.start() + 1)
+                      for m in re.finditer(r"\S+", line)]
+            words_total += len(tokens)
             for rule_id, level, pattern, msg in RULES:
                 for m in pattern.finditer(line):
                     findings.append({"file": filename, "line": lineno,
@@ -261,14 +291,12 @@ def lint(text, filename="<stdin>"):
                         seen_synonyms[(gi, base)] = (
                             lineno, source_column + m.start() + 1, m.group(0)
                         )
-            for sent in re.split(r"(?<=[.!?])\s+", line):
-                n = len(sent.split())
-                if n > MAX_WORDS:
-                    findings.append({"file": filename, "line": lineno,
-                                     "col": source_column + 1,
-                                     "rule": "long-sentence", "level": "advisory-free",
-                                     "match": f"{n} words",
-                                     "message": f"Sentence has {n} words (cap {MAX_WORDS}). Split it."})
+            pending.extend(tokens)
+            if in_table:
+                flush()
+        if raw_line.lstrip().startswith("#"):
+            flush()
+    flush()
     # synonym rotation: flag each member after the first, at its first occurrence
     for gi, group in enumerate(SYNONYM_GROUPS):
         present = [(seen_synonyms[(gi, b)], b) for b in group if (gi, b) in seen_synonyms]
@@ -277,7 +305,8 @@ def lint(text, filename="<stdin>"):
             first_base = present[0][1]
             for (lineno, col, match), base in present[1:]:
                 findings.append({"file": filename, "line": lineno, "col": col,
-                                 "rule": "synonym-rotation", "level": "advisory-free",
+                                 "rule": "synonym-rotation",
+                                 "level": "advisory-free" if strict else "advisory",
                                  "match": match,
                                  "message": f"'{base}' and '{first_base}' name the same action. Pick one and use it every time."})
     findings.extend(_dangling_conjunction_findings(text, filename))
@@ -406,6 +435,17 @@ def selftest():
     findings, _ = lint("Check the config file. Then verify the output. Verify twice.")
     rot = [f for f in findings if f["rule"] == "synonym-rotation"]
     assert len(rot) == 1 and "'verify' and 'check'" in rot[0]["message"], rot
+    assert rot[0]["level"] == "advisory", rot
+    findings, _ = lint("Check the config file. Then verify the output.", strict=True)
+    assert [f["level"] for f in findings if f["rule"] == "synonym-rotation"] == ["advisory-free"]
+    # sentence length counts across line wraps and reports the first word
+    wrapped = ("word " * 13) + "\n" + ("word " * 13).strip() + "."
+    findings, _ = lint("Intro.\n" + wrapped)
+    long_ = [f for f in findings if f["rule"] == "long-sentence"]
+    assert len(long_) == 1 and long_[0]["line"] == 2 and long_[0]["col"] == 1, long_
+    # inline code is masked with spaces, so later columns stay correct
+    findings, _ = lint("Use `x` and spin up now.")
+    assert [f["col"] for f in findings if f["rule"] == "phrasal-verb"] == [13], findings
     # single consistent term: no flag
     findings, _ = lint("Check the config. Check the output.")
     assert not any(f["rule"] == "synonym-rotation" for f in findings)
@@ -420,6 +460,7 @@ def main(argv):
         selftest()
         return 0
     as_json = "--json" in argv
+    strict = "--strict" in argv
     baseline = 0
     disabled = set()
     paths = []
@@ -439,11 +480,11 @@ def main(argv):
     findings, words_total = [], 0
     if paths:
         for p in paths:
-            f, w = lint(open(p, encoding="utf-8").read(), filename=p)
+            f, w = lint(open(p, encoding="utf-8").read(), filename=p, strict=strict)
             findings.extend(f)
             words_total += w
     else:
-        findings, words_total = lint(sys.stdin.read())
+        findings, words_total = lint(sys.stdin.read(), strict=strict)
 
     findings = [f for f in findings if f["rule"] not in disabled]
     hard_count = sum(1 for f in findings if f["level"] == "advisory-free")
