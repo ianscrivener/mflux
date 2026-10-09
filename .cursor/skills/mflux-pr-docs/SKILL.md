@@ -21,14 +21,15 @@ Write the PR body for the current branch. The developer must approve the body be
    - If the PR is open: `gh pr view <n> --json title,body,closingIssuesReferences` and `gh pr checks <n>`.
 2. Copy `.github/pull_request_template.md` to `tmp-PR-content.md`. If `tmp-PR-content.md` exists, ask the developer before you replace it.
    - Add this heading as the first line: `# Draft PR Content`.
+   - Add this line below the heading: `Title: <PR title>`. Write the title in step 3.
    - If the PR is open, `gh pr edit --body-file` replaces the existing body. Copy each existing section and link that the template does not have into `tmp-PR-content.md`. Get them from the `body` field of step 1. If you do not copy them, ask the developer to confirm before you discard them.
-3. Write the `What` section. Obey `pr-what-prompt.md` in this folder. Use the diff from step 1 if the PR is not open. Add `Fixes #<n>` for each linked issue.
+3. Write the PR title on the `Title:` line. Use one line of 72 characters or fewer. If the PR is open, start from its current title. Then write the `What` section. Obey `pr-what-prompt.md` in this folder. Use the diff from step 1 if the PR is not open. Add `Fixes #<n>` for each linked issue.
 4. Write the release note. Obey `release-note-prompt.md` in this folder.
    - Put the note on the lines below the opening fence. Do not put text on the fence line.
    - Tell the developer which PR label the PR needs.
 5. Write the `Verification` section. List only the commands that ran, with the result of each command. If no command ran, write `TODO: add the commands that you ran.` Do not write a result that you did not see.
 6. Do not tick the boxes in the `Checklist` section. The developer ticks them.
-7. Examine the text that you wrote. Do not examine the template text.
+7. Examine the text that you wrote, including the title. Do not examine the template text.
    - Apply the `asd-ste100` skill in STE-flavored mode.
    - Put the text that you wrote in a temporary file. Run `python3 .cursor/skills/asd-ste100/scripts/ste-lint.py <file>`.
    - Fix each hard violation.
@@ -48,9 +49,9 @@ Write the PR body for the current branch. The developer must approve the body be
    - Do not continue until the developer writes `approve`.
 10. Read `tmp-PR-content.md` again after the developer approves it. The developer can edit the file before approval. Do step 8 again.
 11. Send the PR content to GitHub:
-    - Delete the `# Draft PR Content` heading line from `tmp-PR-content.md`. GitHub must not get this heading.
-    - If the PR is not open, push the branch first. Ask for permission before you push. Obey the `mflux-pr` skill. Then run `gh pr create --body-file tmp-PR-content.md`.
-    - If the PR is open: `gh pr edit <n> --body-file tmp-PR-content.md`.
+    - Read the title from the `Title:` line. Delete the `# Draft PR Content` heading line and the `Title:` line from `tmp-PR-content.md`. GitHub must not get them.
+    - If the PR is not open, push the branch first. Ask for permission before you push. Obey the `mflux-pr` skill. Then run `gh pr create --title "<title>" --body-file tmp-PR-content.md`. `gh` needs `--title` when it runs without a terminal.
+    - If the PR is open: `gh pr edit <n> --body-file tmp-PR-content.md`. Add `--title "<title>"` only if the developer changed the title.
 12. Delete `tmp-PR-content.md`.
 
 ## Rules
