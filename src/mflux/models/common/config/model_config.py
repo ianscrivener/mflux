@@ -174,6 +174,11 @@ class ModelConfig:
 
     @staticmethod
     @lru_cache
+    def qwen_image_21_turbo_controlnet_union() -> "ModelConfig":
+        return AVAILABLE_MODELS["qwen-image-2.1-turbo-controlnet-union"]
+
+    @staticmethod
+    @lru_cache
     def boogu_image_turbo() -> "ModelConfig":
         return AVAILABLE_MODELS["boogu-image-turbo"]
 
@@ -776,6 +781,24 @@ AVAILABLE_MODELS = {
         lora_training_steps=8,
         lora_training_guidance=1.0,
         transformer_overrides={"rope_axes_dim": [32, 48, 48]},
+    ),
+    "qwen-image-2.1-turbo-controlnet-union": ModelConfig(
+        # The Turbo checkpoint with the Fun ControlNet-Union branch beside it. alibaba-pai trained the
+        # branch with the base model. It runs on the Turbo schedule in 8 steps.
+        priority=34,
+        aliases=[
+            "qwen-image-2.1-turbo-controlnet-union",
+            "qwen-image-2.1-turbo-controlnet",
+            "qwen-2.1-turbo-controlnet",
+        ],
+        model_name="Qwen/Qwen-Image-2.1-Turbo",
+        base_model=None,
+        controlnet_model="alibaba-pai/Qwen-Image-2.1-Fun-Controlnet-Union",
+        custom_transformer_model=None,
+        num_train_steps=None,
+        max_sequence_length=None,
+        supports_guidance=False,
+        requires_sigma_shift=False,
     ),
     "seedvr2-7b": ModelConfig(
         priority=23,

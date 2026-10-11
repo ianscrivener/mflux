@@ -7,7 +7,7 @@ from mflux.cli.defaults.defaults import model_inference_steps
 from mflux.models.common.config.config import Config
 from mflux.models.common.config.model_config import ModelConfig
 from mflux.models.common.schedulers import SCHEDULER_REGISTRY
-from mflux.models.qwen21.cli import qwen21_edit_generate, qwen21_generate
+from mflux.models.qwen21.cli import qwen21_controlnet_generate, qwen21_edit_generate, qwen21_generate
 from mflux.models.qwen21.model.qwen21_scheduler import Qwen21TurboScheduler
 
 # sample_sigmas from Qwen/Qwen-Image-2.1-Turbo/model_index.json
@@ -161,3 +161,36 @@ def test_python_api_step_default_follows_the_model():
     assert Qwen21TurboScheduler.default_steps(ModelConfig.qwen_image_21()) == 40
     for variant in (QwenImage21, QwenImage21Edit):
         assert inspect.signature(variant.generate_image).parameters["num_inference_steps"].default is None
+
+
+@pytest.mark.fast
+def test_turbo_controlnet_entry_runs_on_the_turbo_schedule():
+    controlnet = ModelConfig.from_name("qwen-2.1-turbo-controlnet")
+    assert controlnet is ModelConfig.qwen_image_21_turbo_controlnet_union()
+    assert controlnet.model_name == "Qwen/Qwen-Image-2.1-Turbo"
+    assert controlnet.controlnet_model == "alibaba-pai/Qwen-Image-2.1-Fun-Controlnet-Union"
+    assert Qwen21TurboScheduler.is_turbo(controlnet)
+    assert Qwen21TurboScheduler.for_model(controlnet, "linear") == "qwen21_turbo"
+    assert Qwen21TurboScheduler.default_steps(controlnet) == 8
+    assert model_inference_steps("qwen-image-2.1-turbo-controlnet-union") == 8
+    base_controlnet = ModelConfig.qwen_image_21_controlnet_union()
+    assert not Qwen21TurboScheduler.is_turbo(base_controlnet)
+    assert Qwen21TurboScheduler.default_steps(base_controlnet) == 40
+
+
+@pytest.mark.fast
+def test_controlnet_cli_checks_the_turbo_entry(monkeypatch, capsys):
+    args = _check(monkeypatch, qwen21_controlnet_generate, "--model", "qwen-image-2.1-turbo-controlnet")
+    assert args.steps == 8
+    with pytest.raises(SystemExit):
+        _check(monkeypatch, qwen21_controlnet_generate, "--model", "qwen-image-2.1-turbo-controlnet", "--steps", "20")
+    assert "Use --steps 8" in capsys.readouterr().err
+
+
+@pytest.mark.fast
+def test_controlnet_python_api_step_default_is_none():
+    import inspect
+
+    from mflux.models.qwen21.variants.controlnet.qwen_image_21_controlnet import QwenImage21Controlnet
+
+    assert inspect.signature(QwenImage21Controlnet.generate_image).parameters["num_inference_steps"].default is None

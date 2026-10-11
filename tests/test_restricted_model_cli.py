@@ -47,7 +47,13 @@ CLI_MODELS = [
     ),
     (qwen21_generate, "qwen-image-2.1", "dev", qwen21_generate.FAMILY_MODELS, ()),
     (qwen21_edit_generate, "qwen-image-2.1", "dev", qwen21_edit_generate.FAMILY_MODELS, ()),
-    (qwen21_controlnet_generate, "qwen-image-2.1-controlnet-union", "z-image-controlnet", (), ()),
+    (
+        qwen21_controlnet_generate,
+        "qwen-image-2.1-controlnet-union",
+        "z-image-controlnet",
+        qwen21_controlnet_generate.FAMILY_MODELS,
+        (),
+    ),
     (qwen_image_generate, "qwen-image", "dev", (), ()),
     (qwen_image_edit_generate, "qwen-image-edit", "qwen-image", (), ("--image-paths", "ref.png")),
 ]

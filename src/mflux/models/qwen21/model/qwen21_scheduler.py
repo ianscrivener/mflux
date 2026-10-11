@@ -108,7 +108,8 @@ class Qwen21TurboScheduler(BaseScheduler):
     def is_turbo(model_config) -> bool:
         from mflux.models.common.config.model_config import ModelConfig
 
-        return model_config is ModelConfig.qwen_image_21_turbo()
+        # Every registry entry on the Turbo checkpoint, the ControlNet entry too.
+        return model_config.model_name == ModelConfig.qwen_image_21_turbo().model_name
 
     @staticmethod
     def default_steps(model_config) -> int:
