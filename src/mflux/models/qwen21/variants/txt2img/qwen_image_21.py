@@ -53,7 +53,7 @@ class QwenImage21(nn.Module):
         self,
         seed: int,
         prompt: str,
-        num_inference_steps: int = 40,
+        num_inference_steps: int | None = None,
         height: int = 1024,
         width: int = 1024,
         guidance: float = 1.0,
@@ -68,6 +68,8 @@ class QwenImage21(nn.Module):
             if step_cache_ratio is not None and step_cache_ratio != teacache_ratio:
                 raise ValueError("Pass step_cache_ratio or its deprecated alias teacache_ratio, not both")
             step_cache_ratio = teacache_ratio
+        if num_inference_steps is None:
+            num_inference_steps = Qwen21TurboScheduler.default_steps(self.model_config)
         config = Config(
             width=width,
             height=height,

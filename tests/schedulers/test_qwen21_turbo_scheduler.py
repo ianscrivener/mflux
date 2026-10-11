@@ -148,3 +148,16 @@ def test_cli_local_turbo_folder_defaults_to_eight_steps(monkeypatch, module):
     args = parser.parse_args()
     Qwen21TurboScheduler.check_args(parser, args, ModelConfig.qwen_image_21_turbo())
     assert args.steps == 8
+
+
+@pytest.mark.fast
+def test_python_api_step_default_follows_the_model():
+    import inspect
+
+    from mflux.models.qwen21.variants.edit.qwen_image_21_edit import QwenImage21Edit
+    from mflux.models.qwen21.variants.txt2img.qwen_image_21 import QwenImage21
+
+    assert Qwen21TurboScheduler.default_steps(ModelConfig.qwen_image_21_turbo()) == 8
+    assert Qwen21TurboScheduler.default_steps(ModelConfig.qwen_image_21()) == 40
+    for variant in (QwenImage21, QwenImage21Edit):
+        assert inspect.signature(variant.generate_image).parameters["num_inference_steps"].default is None

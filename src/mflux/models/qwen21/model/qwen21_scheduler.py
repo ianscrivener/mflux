@@ -111,6 +111,15 @@ class Qwen21TurboScheduler(BaseScheduler):
         return model_config is ModelConfig.qwen_image_21_turbo()
 
     @staticmethod
+    def default_steps(model_config) -> int:
+        # The step count when a Python API caller gives none: 8 for Turbo, else the base default.
+        from mflux.cli.defaults.defaults import MODEL_INFERENCE_STEPS
+
+        if Qwen21TurboScheduler.is_turbo(model_config):
+            return len(Qwen21TurboScheduler.SIGMA_NODES)
+        return MODEL_INFERENCE_STEPS["qwen-image-2.1"]
+
+    @staticmethod
     def for_model(model_config, scheduler: str) -> str:
         # The scheduler name Config should build. The Turbo checkpoint's default schedule is
         # its saved nodes, so "linear" (the default name) maps to them. The caller records

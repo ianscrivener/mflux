@@ -92,7 +92,7 @@ mflux-generate-qwen-2.1-edit \
 - Use 1024 px or larger. At small sizes such as 512×320, Turbo turns fine detail into a pixel grid. The diffusers reference does the same.
 - The defaults are 8 steps and guidance 1. Other values for `--steps` or `--guidance`, and `--scheduler viggle_turbo`, stop with an error before the model loads.
 - The ControlNet command does not accept the Turbo model. alibaba-pai trained the Fun ControlNet-Union with the base model.
-- Weights: about 32 GB bf16 on disk (14.2 GB transformer, 17.5 GB text encoder in one file, 0.7 GB VAE). A q8 save from the edit command is 17 GB.
+- Weights: about 32 GB bf16 on disk (14.2 GB transformer, 17.5 GB text encoder in one file, 0.7 GB VAE). A q8 save from the edit command is 17 GB (measured with `du`). That command quantizes the text encoder too.
 - Validation: the diffusers reference made a bf16 image at 1024², seed 42. The q8 edit command started from the same initial noise and got PSNR 29.5 dB against that image.
 
 ### img2img

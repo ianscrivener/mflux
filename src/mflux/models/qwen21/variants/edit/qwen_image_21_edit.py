@@ -9,7 +9,6 @@ import numpy as np
 from mlx import nn
 from PIL import Image
 
-from mflux.cli.defaults.defaults import MODEL_INFERENCE_STEPS
 from mflux.models.common.config import ModelConfig
 from mflux.models.common.config.config import Config
 from mflux.models.common.step_cache.step_cache import StepCache as StepReuse
@@ -64,7 +63,7 @@ class QwenImage21Edit(nn.Module):
         self,
         seed: int,
         prompt: str,
-        num_inference_steps: int = MODEL_INFERENCE_STEPS["qwen-image-2.1"],
+        num_inference_steps: int | None = None,
         height: int | None = None,
         width: int | None = None,
         guidance: float = 1.0,
@@ -83,6 +82,8 @@ class QwenImage21Edit(nn.Module):
         scheduler: str = "linear",
     ) -> GeneratedImage:
         image_paths = image_paths or []
+        if num_inference_steps is None:
+            num_inference_steps = Qwen21TurboScheduler.default_steps(self.model_config)
         QwenImage21Edit._check_reference_count(image_paths)
         if scheduler not in EDIT_SCHEDULERS:
             raise ValueError(f"The Qwen-Image-2.1 edit runs the linear or viggle_turbo schedule, got {scheduler!r}.")
