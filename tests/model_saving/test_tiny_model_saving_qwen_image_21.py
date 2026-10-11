@@ -9,10 +9,10 @@ from tests.model_saving.tiny_checkpoint_helper import TinyCheckpointRoundtrip, T
 class TestTinyQwenImage21ModelSaving:
     @pytest.mark.fast
     def test_tiny_quantized_checkpoint_roundtrips_exactly(self, tmp_path):
-        # Qwen-Image-2.1 has no slow save test. This test covers the mflux-save path
-        # (QwenImage21 with Qwen21WeightDefinition), which qwen-image-2.1 and qwen-image-2.1-turbo
-        # share. The text encoder has skip_quantization, so it round-trips unquantized beside
-        # the quantized transformer.
+        # Qwen-Image-2.1 has no slow save test. This test covers QwenImage21.save_model
+        # (Qwen21WeightDefinition), which qwen-image-2.1 and qwen-image-2.1-turbo share. The text
+        # encoder has skip_quantization, so it round-trips unquantized beside the quantized
+        # transformer.
         TinyCheckpointRoundtrip.save_and_reload_expecting_identical_weights(
             weight_definition=Qwen21WeightDefinition,
             make_components=TestTinyQwenImage21ModelSaving._tiny_components,
