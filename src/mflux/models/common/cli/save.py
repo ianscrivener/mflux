@@ -62,6 +62,7 @@ MODEL_CLASSES: dict[str, type] = {
     "qwen-image": QwenImage,
     "qwen-image-2.1": QwenImage21,
     "qwen-image-2.1-controlnet-union": QwenImage21Controlnet,
+    "qwen-image-2.1-turbo": QwenImage21,
     "qwen-image-edit": QwenImageEdit,
     "qwen-image-edit-2511": QwenImageEdit,
     "schnell": Flux1,

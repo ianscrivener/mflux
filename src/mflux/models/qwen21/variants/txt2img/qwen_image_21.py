@@ -10,6 +10,7 @@ from mflux.models.common.step_cache.step_cache import StepCache
 from mflux.models.common.vae.vae_util import VAEUtil
 from mflux.models.common.weights.saving.model_saver import ModelSaver
 from mflux.models.qwen21.latent_creator.qwen21_latent_creator import Qwen21LatentCreator
+from mflux.models.qwen21.model.qwen21_scheduler import Qwen21TurboScheduler
 from mflux.models.qwen21.model.qwen21_text_encoder.qwen21_prompt_encoder import Qwen21PromptEncoder
 from mflux.models.qwen21.model.qwen21_text_encoder.qwen21_text_encoder import Qwen21TextEncoder
 from mflux.models.qwen21.model.qwen21_transformer.qwen21_transformer import Qwen21Transformer
@@ -71,7 +72,7 @@ class QwenImage21(nn.Module):
             width=width,
             height=height,
             guidance=guidance,
-            scheduler=scheduler,
+            scheduler=Qwen21TurboScheduler.for_model(self.model_config, scheduler),
             image_path=image_path,
             image_strength=image_strength,
             model_config=self.model_config,

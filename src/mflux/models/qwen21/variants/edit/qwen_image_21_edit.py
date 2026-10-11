@@ -16,6 +16,7 @@ from mflux.models.common.step_cache.step_cache import StepCache as StepReuse
 from mflux.models.common.vae.vae_util import VAEUtil
 from mflux.models.common.weights.saving.model_saver import ModelSaver
 from mflux.models.qwen21.latent_creator.qwen_image21_latent_creator import QwenImage21LatentCreator
+from mflux.models.qwen21.model.qwen21_scheduler import Qwen21TurboScheduler
 from mflux.models.qwen21.model.qwen21_text_encoder.grounding import QwenImage21Grounding
 from mflux.models.qwen21.model.qwen21_text_encoder.prompt_encoder import QwenImage21PromptEncoder
 from mflux.models.qwen21.model.qwen21_transformer.qwen21_layout import QwenImage21Layout
@@ -116,7 +117,7 @@ class QwenImage21Edit(nn.Module):
             # the source noised to that sigma instead of pure noise
             image_path=QwenImage21Edit._recorded_path(image_paths[0]) if strength < 1 else None,
             image_strength=1 - strength if strength < 1 else None,
-            scheduler=scheduler,
+            scheduler=Qwen21TurboScheduler.for_model(self.model_config, scheduler),
         )
         original_prompt = prompt
         if enhance_prompt:
