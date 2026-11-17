@@ -90,3 +90,15 @@ def test_memory_saver_drops_encoder_for_multi_seed_when_prompt_is_cached():
     saver = MemorySaver(model, cache_limit_bytes=None, num_seeds=3)
     saver.call_before_loop(seed=1, prompt="a cat", latents=mx.zeros((1,)), config=None)
     assert model.text_encoder is None
+
+
+@pytest.mark.fast
+def test_timing_is_readable_and_reset_when_disabled(monkeypatch):
+    model, _ = _model()
+    monkeypatch.setenv("MFLUX_TIMING", "1")
+    model._encode_prompts(prompt="a cat", negative_prompt=None, guidance=0.0)
+    assert model.timing.num_valid == 8 and model.timing.prefill_s >= 0
+    assert "timing" not in model.parameters()
+    monkeypatch.delenv("MFLUX_TIMING")
+    model._encode_prompts(prompt="a cat", negative_prompt=None, guidance=0.0)
+    assert model.timing is None

@@ -1,6 +1,7 @@
 import os
 import time
 from collections import OrderedDict
+from dataclasses import dataclass
 from pathlib import Path
 
 import mlx.core as mx
@@ -25,6 +26,15 @@ from mflux.utils.apple_silicon import AppleSiliconUtil
 from mflux.utils.exceptions import StopImageGenerationException
 from mflux.utils.generated_image import GeneratedImage
 from mflux.utils.image_util import ImageUtil
+
+
+@dataclass(frozen=True)
+class PrefillTiming:
+    """Not a dict, because nn.Module cannot assign a dict over a class-level default."""
+
+    prefill_s: float
+    num_valid: int
+    num_valid_negative: int | None
 
 
 class _PromptCache:
@@ -59,7 +69,7 @@ class ZImage(nn.Module):
     small_text_encoder: bool = False
     transformer: ZImageTransformer
     # Set when MFLUX_TIMING=1. It holds the prefill time and the real token counts of the last generation.
-    timing: dict | None = None
+    timing: PrefillTiming | None = None
     PROMPT_CACHE_SIZE = 32
 
     def __init__(
@@ -280,14 +290,15 @@ class ZImage(nn.Module):
         negative_encodings: mx.array | None,
     ) -> None:
         if not enabled:
+            self.timing = None
             return
         # MLX is lazy. Without this eval the timer measures only the graph build, not the prefill.
         mx.eval(text_encodings, negative_encodings)
-        self.timing = {
-            "prefill_s": time.perf_counter() - start,
-            "num_valid": int(text_encodings.shape[0]),
-            "num_valid_negative": None if negative_encodings is None else int(negative_encodings.shape[0]),
-        }
+        self.timing = PrefillTiming(
+            prefill_s=time.perf_counter() - start,
+            num_valid=int(text_encodings.shape[0]),
+            num_valid_negative=None if negative_encodings is None else int(negative_encodings.shape[0]),
+        )
 
     def _decode_latents(
         self,
