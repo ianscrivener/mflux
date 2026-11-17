@@ -45,17 +45,16 @@ class TextEncoder(nn.Module):
         # Causal mask
         causal_mask = TextEncoder._get_causal_mask(attention_mask, batch_size, hidden_states, seq_len)
 
-        # Forward through layers
-        all_hidden_states = [hidden_states]
-        for layer in self.layers:
+        # Z-Image taps the output of the second-to-last layer (hidden_states[-2] in transformers). The last layer
+        # and the final norm only feed hidden_states[-1], so the loop skips them.
+        for layer in self.layers[:-1]:
             hidden_states = layer(
                 hidden_states=hidden_states,
                 attention_mask=causal_mask,
                 position_embeddings=position_embeddings,
             )
-            all_hidden_states.append(hidden_states)
 
-        return all_hidden_states[-2].astype(ModelConfig.precision)
+        return hidden_states.astype(ModelConfig.precision)
 
     @staticmethod
     def _get_causal_mask(attention_mask, batch_size, hidden_states, seq_len):
