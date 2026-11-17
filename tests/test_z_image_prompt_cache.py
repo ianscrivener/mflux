@@ -102,3 +102,13 @@ def test_timing_is_readable_and_reset_when_disabled(monkeypatch):
     monkeypatch.delenv("MFLUX_TIMING")
     model._encode_prompts(prompt="a cat", negative_prompt=None, guidance=0.0)
     assert model.timing is None
+
+
+@pytest.mark.fast
+def test_uncached_prompt_without_text_encoder_raises_a_clear_error():
+    model, _ = _model()
+    model._encode_prompts(prompt="a cat", negative_prompt=None, guidance=0.0)
+    model.text_encoder = None
+    model._encode_prompts(prompt="a cat", negative_prompt=None, guidance=0.0)  # a hit still works
+    with pytest.raises(RuntimeError, match="text encoder is released"):
+        model._encode_prompts(prompt="a dog", negative_prompt=None, guidance=0.0)

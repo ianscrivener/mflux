@@ -272,6 +272,11 @@ class ZImage(nn.Module):
         cached = cache.get(key)
         if cached is not None:
             return cached
+        if self.text_encoder is None:
+            raise RuntimeError(
+                "The text encoder is released (low-RAM mode) and the prompt is not in the cache. "
+                "Use the same prompt for every seed, or keep the text encoder."
+            )
         encodings = PromptEncoder.encode_prompt(
             prompt=prompt,
             tokenizer=self.tokenizers["z_image"],
