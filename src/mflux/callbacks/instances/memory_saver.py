@@ -46,7 +46,10 @@ class MemorySaver(BeforeLoopCallback, InLoopCallback, AfterLoopCallback):
         # Only evict when safe: single-seed run, or embeddings are cached in prompt_cache
         # (Flux1 caches embeddings so encoder isn't needed for subsequent seeds;
         #  Flux2 re-encodes each call and has no prompt_cache — keep encoder for multi-seed)
-        has_cached_embeds = hasattr(self.model, "prompt_cache") and prompt in (self.model.prompt_cache or {})
+        if hasattr(self.model, "has_cached_prompt"):
+            has_cached_embeds = self.model.has_cached_prompt(prompt)
+        else:
+            has_cached_embeds = hasattr(self.model, "prompt_cache") and prompt in (self.model.prompt_cache or {})
         if not self.keep_text_encoder and (self._num_seeds <= 1 or has_cached_embeds):
             self._delete_text_encoders()
 

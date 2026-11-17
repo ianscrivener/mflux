@@ -1,5 +1,6 @@
 import os
 import time
+from collections import OrderedDict
 from pathlib import Path
 
 import mlx.core as mx
@@ -26,6 +27,32 @@ from mflux.utils.generated_image import GeneratedImage
 from mflux.utils.image_util import ImageUtil
 
 
+class _PromptCache:
+    """Small LRU. It is not a dict, so nn.Module does not count the cached arrays as parameters."""
+
+    def __init__(self, max_entries: int):
+        self._max_entries = max_entries
+        self._entries: OrderedDict[tuple, mx.array] = OrderedDict()
+
+    def __contains__(self, key: tuple) -> bool:
+        return key in self._entries
+
+    def __len__(self) -> int:
+        return len(self._entries)
+
+    def get(self, key: tuple) -> mx.array | None:
+        value = self._entries.get(key)
+        if value is not None:
+            self._entries.move_to_end(key)
+        return value
+
+    def put(self, key: tuple, value: mx.array) -> None:
+        self._entries[key] = value
+        self._entries.move_to_end(key)
+        while len(self._entries) > self._max_entries:
+            self._entries.popitem(last=False)
+
+
 class ZImage(nn.Module):
     vae: VAE
     text_encoder: TextEncoder | ZImageSmallTextEncoder
@@ -33,6 +60,7 @@ class ZImage(nn.Module):
     transformer: ZImageTransformer
     # Set when MFLUX_TIMING=1. It holds the prefill time and the real token counts of the last generation.
     timing: dict | None = None
+    PROMPT_CACHE_SIZE = 32
 
     def __init__(
         self,
@@ -47,6 +75,7 @@ class ZImage(nn.Module):
         small_text_encoder: bool = False,
     ):
         super().__init__()
+        self.model_path = model_path
         ZImageInitializer.init(
             model=self,
             quantize=quantize,
@@ -195,22 +224,53 @@ class ZImage(nn.Module):
     ) -> tuple[mx.array, mx.array | None]:
         timing_enabled = os.environ.get("MFLUX_TIMING") == "1"
         start = time.perf_counter() if timing_enabled else 0.0
-        text_encodings = PromptEncoder.encode_prompt(
-            prompt=prompt,
-            tokenizer=self.tokenizers["z_image"],
-            text_encoder=self.text_encoder,
-        )
+        text_encodings = self._encode_prompt_cached(prompt)
         if guidance <= 1.0:
             self._record_prefill(timing_enabled, start, text_encodings, None)
             return text_encodings, None
         negative_text = negative_prompt if negative_prompt and negative_prompt.strip() else " "
-        negative_encodings = PromptEncoder.encode_prompt(
-            prompt=negative_text,
+        negative_encodings = self._encode_prompt_cached(negative_text)
+        self._record_prefill(timing_enabled, start, text_encodings, negative_encodings)
+        return text_encodings, negative_encodings
+
+    def _prompt_cache_key(self, prompt: str) -> tuple:
+        tokenizer = self.tokenizers["z_image"]
+        return (
+            prompt,
+            getattr(tokenizer, "max_length", None),
+            getattr(tokenizer, "use_chat_template", None),
+            repr(getattr(tokenizer, "chat_template_kwargs", None)),
+            getattr(tokenizer, "template", None),
+            "small" if self.small_text_encoder else "full",
+            self.bits,
+            getattr(self, "model_path", None),
+            self.model_config.model_name,
+        )
+
+    def _get_prompt_cache(self) -> "_PromptCache":
+        # Created on first use, so a model built without __init__ (tests, subclasses) still works.
+        if getattr(self, "_prompt_cache", None) is None:
+            self._prompt_cache = _PromptCache(self.PROMPT_CACHE_SIZE)
+        return self._prompt_cache
+
+    def has_cached_prompt(self, prompt: str) -> bool:
+        return self._prompt_cache_key(prompt) in self._get_prompt_cache()
+
+    def _encode_prompt_cached(self, prompt: str) -> mx.array:
+        key = self._prompt_cache_key(prompt)
+        cache = self._get_prompt_cache()
+        cached = cache.get(key)
+        if cached is not None:
+            return cached
+        encodings = PromptEncoder.encode_prompt(
+            prompt=prompt,
             tokenizer=self.tokenizers["z_image"],
             text_encoder=self.text_encoder,
         )
-        self._record_prefill(timing_enabled, start, text_encodings, negative_encodings)
-        return text_encodings, negative_encodings
+        # Evaluate now. A lazy entry would keep the encoder weights alive until first use.
+        mx.eval(encodings)
+        cache.put(key, encodings)
+        return encodings
 
     def _record_prefill(
         self,
