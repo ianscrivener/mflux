@@ -1,3 +1,5 @@
+import os
+import time
 from pathlib import Path
 
 import mlx.core as mx
@@ -29,6 +31,8 @@ class ZImage(nn.Module):
     text_encoder: TextEncoder | ZImageSmallTextEncoder
     small_text_encoder: bool = False
     transformer: ZImageTransformer
+    # Set when MFLUX_TIMING=1. It holds the prefill time and the real token counts of the last generation.
+    timing: dict | None = None
 
     def __init__(
         self,
@@ -189,12 +193,15 @@ class ZImage(nn.Module):
         negative_prompt: str | None,
         guidance: float,
     ) -> tuple[mx.array, mx.array | None]:
+        timing_enabled = os.environ.get("MFLUX_TIMING") == "1"
+        start = time.perf_counter() if timing_enabled else 0.0
         text_encodings = PromptEncoder.encode_prompt(
             prompt=prompt,
             tokenizer=self.tokenizers["z_image"],
             text_encoder=self.text_encoder,
         )
         if guidance <= 1.0:
+            self._record_prefill(timing_enabled, start, text_encodings, None)
             return text_encodings, None
         negative_text = negative_prompt if negative_prompt and negative_prompt.strip() else " "
         negative_encodings = PromptEncoder.encode_prompt(
@@ -202,7 +209,25 @@ class ZImage(nn.Module):
             tokenizer=self.tokenizers["z_image"],
             text_encoder=self.text_encoder,
         )
+        self._record_prefill(timing_enabled, start, text_encodings, negative_encodings)
         return text_encodings, negative_encodings
+
+    def _record_prefill(
+        self,
+        enabled: bool,
+        start: float,
+        text_encodings: mx.array,
+        negative_encodings: mx.array | None,
+    ) -> None:
+        if not enabled:
+            return
+        # MLX is lazy. Without this eval the timer measures only the graph build, not the prefill.
+        mx.eval(text_encodings, negative_encodings)
+        self.timing = {
+            "prefill_s": time.perf_counter() - start,
+            "num_valid": int(text_encodings.shape[0]),
+            "num_valid_negative": None if negative_encodings is None else int(negative_encodings.shape[0]),
+        }
 
     def _decode_latents(
         self,
