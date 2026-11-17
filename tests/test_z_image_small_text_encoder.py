@@ -247,6 +247,32 @@ class TestConfigAndBuild:
         assert student.layers[0].mlp.gate_proj.weight.shape == (6144, 2048)
         assert student.norm.eps == 1e-6
 
+    def test_trimming_right_padding_keeps_the_valid_token_embeddings(self):
+        mx.random.seed(0)
+        student = TextEncoder(
+            vocab_size=50,
+            hidden_size=32,
+            num_hidden_layers=3,
+            num_attention_heads=4,
+            num_key_value_heads=2,
+            intermediate_size=64,
+            head_dim=8,
+            rope_theta=10000.0,
+            rms_norm_eps=1e-6,
+        )
+        adapter = ZImageStudentAdapter(student_dim=32, teacher_dim=24, dim=16, heads=2, blocks=2, ff_mult=2)
+        model = ZImageSmallTextEncoder(student=student, adapter=adapter)
+        valid, total = 7, 16
+        ids = mx.concatenate(
+            [mx.random.randint(0, 50, (1, valid)), mx.zeros((1, total - valid), dtype=mx.int32)], axis=1
+        )
+        mask = mx.concatenate(
+            [mx.ones((1, valid), dtype=mx.int32), mx.zeros((1, total - valid), dtype=mx.int32)], axis=1
+        )
+        full = model(ids, mask)[0, :valid].astype(mx.float32)
+        trimmed = model(ids[:, :valid], mask[:, :valid])[0].astype(mx.float32)
+        assert mx.allclose(full, trimmed, atol=1e-5).item()
+
     def test_the_adapter_has_the_published_dims(self):
         adapter = ZImageSmallTextEncoder.build_adapter()
         assert adapter.q_proj.weight.shape == (1024, 2048)
