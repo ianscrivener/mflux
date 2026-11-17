@@ -49,3 +49,30 @@ def test_last_layer_weights_do_not_affect_the_output():
     before = encoder(input_ids, attention_mask)
     encoder.layers[-1].self_attn.q_proj.weight = mx.full(encoder.layers[-1].self_attn.q_proj.weight.shape, mx.nan)
     assert mx.array_equal(encoder(input_ids, attention_mask), before).item()
+
+
+def _compare_padded_and_trimmed(model, vocab: int, num_valid: int = 5, padded: int = 16) -> None:
+    ids = mx.random.randint(1, vocab, (1, num_valid))
+    padded_ids = mx.concatenate([ids, mx.zeros((1, padded - num_valid), dtype=ids.dtype)], axis=1)
+    padded_mask = mx.array([[1] * num_valid + [0] * (padded - num_valid)])
+    full = model(padded_ids, padded_mask)[0, :num_valid].astype(mx.float32)
+    trimmed = model(padded_ids[:, :num_valid], padded_mask[:, :num_valid])[0].astype(mx.float32)
+    assert mx.max(mx.abs(full - trimmed)).item() < 1e-4
+    cosine = mx.sum(full * trimmed) / (mx.linalg.norm(full) * mx.linalg.norm(trimmed))
+    assert cosine.item() > 0.9999
+
+
+def test_trimmed_input_matches_padded_input(monkeypatch):
+    monkeypatch.setattr(ModelConfig, "precision", mx.float32)
+    _compare_padded_and_trimmed(_tiny_encoder(), vocab=64)
+
+
+def test_trimmed_input_matches_padded_input_with_adapter(monkeypatch):
+    from mflux.models.z_image.model.z_image_text_encoder.small_text_encoder import ZImageSmallTextEncoder
+    from mflux.models.z_image.model.z_image_text_encoder.student_adapter import ZImageStudentAdapter
+
+    monkeypatch.setattr(ModelConfig, "precision", mx.float32)
+    mx.random.seed(1)
+    adapter = ZImageStudentAdapter(student_dim=32, teacher_dim=48, dim=16, heads=2, blocks=2, ff_mult=2)
+    mx.eval(adapter.parameters())
+    _compare_padded_and_trimmed(ZImageSmallTextEncoder(student=_tiny_encoder(), adapter=adapter), vocab=64)

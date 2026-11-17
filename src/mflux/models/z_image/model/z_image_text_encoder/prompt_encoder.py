@@ -16,10 +16,12 @@ class PromptEncoder:
         text_encoder: TextEncoder,
     ) -> mx.array:
         output = tokenizer.tokenize(prompt)
-        cap_feats = text_encoder(output.input_ids, output.attention_mask)
         num_valid = int(mx.sum(output.attention_mask[0]).item())
         PromptEncoder._warn_if_truncated(num_valid, getattr(tokenizer, "max_length", None))
-        return cap_feats[0, :num_valid, :]
+        # The tokenizer pads on the right. Padded rows never reach the real rows (causal mask), and the caller
+        # drops them, so the encoder only needs the real tokens.
+        cap_feats = text_encoder(output.input_ids[:, :num_valid], output.attention_mask[:, :num_valid])
+        return cap_feats[0]
 
     @staticmethod
     def _warn_if_truncated(num_valid: int, max_length: int | None) -> None:
