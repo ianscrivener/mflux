@@ -61,7 +61,7 @@ The load step does these tasks in this sequence:
 ## How main() uses the steps
 
 ```python
-model = QwenImageCommand.load(args)          # validate runs inside load
+model = QwenImageCommand.load(args)  # validate runs inside load
 memory_saver = CallbackManager.register_callbacks(
     args=args, model=model, latent_creator=QwenImageCommand.latent_creator
 )
